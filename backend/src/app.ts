@@ -1,5 +1,6 @@
 import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
+import bodyParser from "body-parser"
 import bookingsRouter from "./routes/bookingsRouter"
 import usersRouter from "./routes/usersRouter"
 dotenv.config();
@@ -10,6 +11,7 @@ app.set("port", process.env.PORT || 3000); //  서버 포트
 app.set("host", process.env.HOST || "127.0.0.1"); // 서버 아이피
 
 app.use(express.json());
+app.use(bodyParser.json());
 app.use("/api/booking", bookingsRouter);
 app.use("/api/users", usersRouter);
 

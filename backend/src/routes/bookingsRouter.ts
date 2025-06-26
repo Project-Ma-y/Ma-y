@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getMainPage } from "../controllers/bookingsController";
+import { registerBooking } from "../controllers/bookingsController";
 
 const router = Router();
 
-router.get("/", getMainPage);
+router.get("/registerBooking", registerBooking);
 
 export default router;
