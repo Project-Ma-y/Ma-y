@@ -2,7 +2,7 @@ import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 import bodyParser from "body-parser"
 import bookingsRouter from "./routes/bookingsRouter"
-import usersRouter from "./routes/usersRouter"
+import usersRouter from "./routes/authRouter"
 dotenv.config();
 
 const app: Express = express();
