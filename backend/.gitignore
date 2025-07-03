@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,firebase,node,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,firebase,node,windows
 
+/public_test
+
 ### Firebase ###
 .idea
 **/node_modules/*

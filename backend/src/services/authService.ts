@@ -25,7 +25,7 @@ export const registerUser = async (
         const credential = await auth.createUser({
             email: payload.email,
             password: payload.password,
-            displayName: payload.nickname
+            displayName: payload.name
         })
 
         //유저 정보 users에 저장
@@ -37,7 +37,7 @@ export const registerUser = async (
             },
             email: payload.email,
             password: payload.password,
-            nickname: payload.nickname,
+            name: payload.name,
             phoneNumber: payload.phoneNumber,
             address: payload.address,
             birthdate: payload.birthdate,

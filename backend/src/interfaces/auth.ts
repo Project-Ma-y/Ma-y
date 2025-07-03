@@ -7,12 +7,12 @@ export interface RegisterPayload {
   email: string;
   password: string;
   pwVerify: string;
-  nickname: string;
+  name: string;
   phoneNumber: string;
   address: string;
   birthdate: string;
   registeredParents?: {
-    nickname: string;
+    name: string;
     phoneNumber: string;
     address: string;
     birthdate: string;

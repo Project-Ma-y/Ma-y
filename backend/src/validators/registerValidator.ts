@@ -23,16 +23,12 @@ export function validateRegisterPayload(payload: RegisterPayload): string[] {
     errors.push("유효한 이메일 형식이 아닙니다.");
   }
 
-  if (!payload.password || payload.password.length < 8) {
-    errors.push("비밀번호는 8자 이상이어야 합니다.");
-  }
-
   if (payload.password !== payload.pwVerify) {
     errors.push("비밀번호 확인이 일치하지 않습니다.");
   }
 
-  if (!payload.nickname || payload.nickname.trim().length === 0) {
-    errors.push("닉네임을 입력해주세요.");
+  if (!payload.name || payload.name.trim().length === 0) {
+    errors.push("이름을 입력해주세요.");
   }
 
   if (!payload.address || payload.address.trim().length === 0) {
