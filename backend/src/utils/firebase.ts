@@ -28,7 +28,9 @@ const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
 // const analytics = getAnalytics(app);
 
 if(process.env.HOST){
-  credential: admin.cert(serviceAccount);
+  admin.initializeApp({
+  credential: admin.cert(serviceAccount)
+});
 } else admin.initializeApp(firebaseConfig);
 
 console.log(admin.firestore());
