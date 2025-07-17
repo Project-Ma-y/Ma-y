@@ -21,11 +21,15 @@ const firebaseConfig = {
   databaseURL: process.env.FB_DATABASEURL
 };
 
+const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+
 // // Initialize Firebase
 // const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 
-admin.initializeApp(firebaseConfig);
+if(process.env.HOST){
+  credential: admin.cert(serviceAccount);
+} else admin.initializeApp(firebaseConfig);
 
 console.log(admin.firestore());
 export const auth = admin.auth();     // for 인증
