@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from "express";
+import cors from "cors";
 import dotenv from "dotenv";
 import bodyParser from "body-parser"
 import bookingsRouter from "./routes/bookingsRouter"
@@ -12,6 +13,7 @@ app.set("host", process.env.HOST || "127.0.0.1"); // 서버 아이피
 
 app.use(express.json());
 app.use(bodyParser.json());
+app.use(cors());
 app.use("/api/booking", bookingsRouter);
 app.use("/api/users", usersRouter);
 
