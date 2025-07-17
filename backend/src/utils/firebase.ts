@@ -2,7 +2,7 @@
 import { getFirestore, collection } from "firebase/firestore";
 import dotenv from "dotenv";
 import { credential } from "firebase-admin";
-import { applicationDefault } from "firebase-admin/app";
+import { applicationDefault, cert } from "firebase-admin/app";
 dotenv.config();
 const admin = require("firebase-admin");
 // TODO: Add SDKs for Firebase products that you want to use
@@ -29,7 +29,7 @@ const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
 
 if(process.env.HOST){
   admin.initializeApp({
-  credential: admin.cert(serviceAccount)
+  credential: cert(serviceAccount)
 });
 } else admin.initializeApp(firebaseConfig);
 
