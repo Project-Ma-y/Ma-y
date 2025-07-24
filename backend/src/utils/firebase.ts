@@ -21,13 +21,12 @@ const firebaseConfig = {
   databaseURL: process.env.FB_DATABASEURL
 };
 
-const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
-
 // // Initialize Firebase
 // const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 
 if(process.env.HOST){
+  const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
   admin.initializeApp({
   credential: cert(serviceAccount)
 });

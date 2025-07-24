@@ -10,7 +10,7 @@ export const registerHandler = async (req: Request, res: Response) => {
   try {
     //유효성 검사
     const errors = validateRegisterPayload(req.body);
-    if(errors.length > 0){
+    if (errors.length > 0) {
       const error: any = new Error(errors.join(" / "));
       error.code = 400;
       throw error;
@@ -27,3 +27,16 @@ export const registerHandler = async (req: Request, res: Response) => {
     });
   }
 };
+
+//테스트용 컨트롤러
+export const testAuth = async (req: Request, res: Response) => {
+  try {
+    res.status(200).json({ message: '테스트 성공' });
+  } catch (err: any) {
+    const statusCode = typeof err.code === 'number' ? err.code : 502;
+    res.status(statusCode).json({
+      message: err.message || '테스트 실패',
+      error: err.stack,
+    });
+  }
+}

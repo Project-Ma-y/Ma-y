@@ -9,7 +9,7 @@ export const verifyFirebaseToken = async (req: any, res: any, next: any) => {
   }
 
   try {
-    const decodedToken = await auth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     req.user = decodedToken;
     next();
   } catch (error) {
