@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { registerUser } from '../services/authService'
 import { validateRegisterPayload } from "../validators/registerValidator";
 
+
 // 회원가입 컨트롤러
 // 작성자 김다영
 // 2025.07.02
@@ -26,11 +27,3 @@ export const registerHandler = async (req: Request, res: Response) => {
     });
   }
 };
-
-
-// 로그인 컨트롤러
-// 작성자 김다영
-// 2025.07.02
-export const loginUserHandler = async (req: Request, res: Response) => {
-
-}

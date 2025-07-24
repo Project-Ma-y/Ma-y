@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { registerHandler, loginUserHandler } from "../controllers/authController";
+import { registerHandler } from "../controllers/authController";
+import { verifyFirebaseToken } from "../middleware/authMiddleware";
 
 
 const router = Router();
 
 router.post("/signupEmail", registerHandler);
-router.post("/loginID", loginUserHandler);
+router.post("/auth", verifyFirebaseToken);
 
 export default router;
