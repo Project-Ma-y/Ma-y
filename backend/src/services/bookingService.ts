@@ -41,7 +41,7 @@ export async function getBookingByIdService(id: string) {
   return doc.data();
 }
 
-export async function getMyBookingsService(userId: string) {
+export async function getMyBookingsService(userId: string = "") {
   const snapshot = await db
     .collection(BOOKINGS_COLLECTION)
     .where("userId", "==", userId)

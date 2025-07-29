@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { registerUser } from '../services/authService'
 import { validateRegisterPayload } from "../validators/registerValidator";
+import { updateSignUpCompletion } from "./sessionsController";
 
 
 // 회원가입 컨트롤러
@@ -18,7 +19,12 @@ export const registerHandler = async (req: Request, res: Response) => {
 
     //DB에 등록
     const user = await registerUser(req.body);
+
+    //세션 업데이트
+    await updateSignUpCompletion(req, res, user.uid);
+
     res.status(201).json({ uid: user.uid, message: '회원가입 성공' });
+
   } catch (err: any) {
     const statusCode = typeof err.code === 'number' ? err.code : 500;
     res.status(statusCode).json({

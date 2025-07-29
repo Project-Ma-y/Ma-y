@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { credential } from "firebase-admin";
 import { applicationDefault, cert } from "firebase-admin/app";
 dotenv.config();
-const admin = require("firebase-admin");
+export const admin = require("firebase-admin");
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 

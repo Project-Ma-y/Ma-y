@@ -1,8 +1,8 @@
 export interface BookingPayload {
   id: string;
   userId: string;
-  companionId: string;
-  guardianId: string;
+  companionId?: string;
+  guardianId?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   place: string;
