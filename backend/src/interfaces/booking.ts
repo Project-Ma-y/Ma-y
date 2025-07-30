@@ -1,13 +1,15 @@
+import { Timestamp } from "firebase/firestore";
+
 export interface BookingPayload {
-  id: string;
+  bookingId: string;
   userId: string;
   companionId?: string;
   guardianId?: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+  date: string; // YYYY-MM-DD-HH-mm
   place: string;
   userType: 'guardian' | 'companion';
   status: 'pending' | 'completed' | 'cancelled';
+  timestamp: Timestamp;
   
   price: number;         // 총 금액 (단위: 원)
   isPaid: boolean;       // 결제 여부

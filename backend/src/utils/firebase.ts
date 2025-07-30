@@ -35,4 +35,3 @@ if(process.env.HOST){
 console.log(admin.firestore());
 export const auth = admin.auth();     // for 인증
 export const db = admin.firestore();    // for 데이터베이스
-export const USER_COLLECTION = db.collection("users");

@@ -4,48 +4,59 @@ import { v4 as uuidv4 } from "uuid";
 import { platform } from "os";
 
 const BOOKINGS_COLLECTION = "bookings";
+const collectionRef = db.collection(BOOKINGS_COLLECTION);
 
-export async function createBookingService(payload: BookingPayload) {
-  const bookingId = uuidv4();
-  const docRef = db.collection(BOOKINGS_COLLECTION).doc(bookingId);
+export async function createBookingService(payload: Partial<BookingPayload>) {
+  try {
+    const bookingId = uuidv4();
+    const docRef = await collectionRef.doc(bookingId);
 
-  await docRef.set({
-    id: bookingId,
-    userId: payload.userId,
-    companionId: payload.companionId,
-    guardianId: payload.guardianId,
-    date: payload.date,
-    time: payload.time,
-    place: payload.place,
-    userType: payload.userType,
-    status: payload.status,
+    await docRef.set({
+      bookingId,
+      ...payload
+    });
 
-    price: payload.price,
-    isPaid: payload.isPaid,
-    paymentMethod: payload.paymentMethod,
-    paidAt: payload.paidAt,
-    createdAt: new Date().toISOString(),
-  });
-
-  return { id: bookingId };
+    return { bookingId };
+  } catch (error: any) {
+    console.error("❌ 예약 생성 실패:", error);
+    throw new Error(`예약 생성 중 오류 발생: ${error.message}`);
+  }
 }
 
 export async function getAllBookingsService() {
-  const snapshot = await db.collection(BOOKINGS_COLLECTION).get();
-  return snapshot.docs.map((doc: any) => doc.data());
+  try {
+    const snapshot = await collectionRef.get();
+    return snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error: any) {
+    console.error("❌ 전체 예약 불러오기 실패:", error);
+    throw new Error(`전체 예약 불러오기 중 오류 발생: ${error.message}`);
+  }
 }
 
-export async function getBookingByIdService(id: string) {
-  const doc = await db.collection(BOOKINGS_COLLECTION).doc(id).get();
-  if (!doc.exists) return null;
-  return doc.data();
+
+export async function getBookingByIdService(bookingId: string) {
+  try {
+    const doc = await collectionRef.doc(bookingId).get();
+    if (!doc.exists) return null;
+    return doc.data(); 
+  } catch (error: any) {
+    console.error("❌ 예약 불러오기 실패:", error);
+    throw new Error(`예약 불러오기 중 오류 발생: ${error.message}`);
+  }
 }
 
 export async function getMyBookingsService(userId: string = "") {
-  const snapshot = await db
-    .collection(BOOKINGS_COLLECTION)
-    .where("userId", "==", userId)
-    .get();
+  try {
+    const snapshot = await collectionRef
+      .where("userId", "==", userId)
+      .get();
 
-  return snapshot.docs.map((doc: any) => doc.data());
+    return snapshot.docs.map((doc: any) => doc.data());
+  } catch (error: any) {
+    console.error("❌ 내 예약 불러오기 실패:", error);
+    throw new Error(`내 예약 불러오기 중 오류 발생: ${error.message}`);
+  }
 }
