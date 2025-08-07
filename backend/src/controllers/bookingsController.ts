@@ -3,14 +3,19 @@ import { Request, Response } from "express";
 import { createBookingService, getAllBookingsService, getBookingByIdService, getMyBookingsService } from "../services/bookingService";
 import { updateBookingCompletion } from "./sessionsController";
 import { getUserById } from "../services/usersService";
-import { Timestamp } from "firebase/firestore";
 import { BookingPayload } from "../interfaces/booking";
 
 //예약하기
 export const createBooking = async (req: Request, res: Response) => {
   try {
     //예약 생성
-    const userId = req.sessionData?.userId;
+    // 로그인한 Firebase 사용자 ID
+    const userId = req.user?.uid;
+    if (!userId) {
+      const error: any = new Error("인증된 사용자 정보가 없습니다.");
+      error.code = 401;
+      throw error;
+    }
     const userData = await getUserById(userId);
     const userType = userData.role;
     const bookingPayload: Partial<BookingPayload>= {
@@ -19,7 +24,6 @@ export const createBooking = async (req: Request, res: Response) => {
       place: req.body.place,
       userType: userType,
       status: "pending",
-      timestamp: Timestamp.now(),
 
       price: req.body.price,
       isPaid: true,
@@ -31,7 +35,8 @@ export const createBooking = async (req: Request, res: Response) => {
 
     res.status(201).json(result);
   } catch (error: any) {
-    res.status(500).json({ error: "예약 생성 실패", message: error.message });
+    const statusCode = typeof error.code === "number" ? error.code : 500;
+    res.status(statusCode).json({ error: "예약 생성 실패", message: error.message });
   }
 };
 
@@ -49,26 +54,42 @@ export const getAllBookings = async (_req: Request, res: Response) => {
 export const getBookingById = async (req: Request, res: Response) => {
   try {
     const bookingId = req.params.id;
+
     const booking = await getBookingByIdService(bookingId);
-    if (!booking) res.status(404).json({ error: "예약을 찾을 수 없습니다." });
-    else res.json(booking);
+    if (!booking) {
+      const error: any = new Error("예약을 찾을 수 없습니다.");
+      error.code = 404;
+      throw error;
+    }
+
+    res.json(booking);
   } catch (error: any) {
-    res.status(500).json({ error: "예약 조회 실패", message: error.message });
+    const statusCode = typeof error.code === "number" ? error.code : 500;
+    res.status(statusCode).json({ error: "예약 조회 실패", message: error.message });
   }
 };
 
 //내 예약 보기
 export const getMyBookings = async (req: Request, res: Response) => {
   try {
-    const userId = req.sessionData?.userId;
-    if(!userId){
-      res.status(400).json({ error: "유저 정보가 없습니다."});
+    // 로그인한 Firebase 사용자 ID
+    const userId = req.user?.uid;
+    if (!userId) {
+      const error: any = new Error("인증된 사용자 정보가 없습니다.");
+      error.code = 401;
+      throw error;
     }
 
     const bookings = await getMyBookingsService(userId);
-    if (!bookings) res.status(404).json({ error: "예약을 찾을 수 없습니다." });
-    else res.json(bookings);
+    if (!bookings) {
+      const error: any = new Error("예약을 찾을 수 없습니다.");
+      error.code = 404;
+      throw error;
+    }
+    
+    res.json(bookings);
   } catch (error: any) {
-    res.status(500).json({ error: "내 예약 조회 실패", message: error.message });
+    const statusCode = typeof error.code === "number" ? error.code : 500;
+    res.status(statusCode).json({ error: "내 예약 조회 실패", message: error.message });
   }
 };

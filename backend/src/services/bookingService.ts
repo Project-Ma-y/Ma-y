@@ -48,13 +48,16 @@ export async function getBookingByIdService(bookingId: string) {
   }
 }
 
-export async function getMyBookingsService(userId: string = "") {
+export async function getMyBookingsService(userId: string) {
   try {
     const snapshot = await collectionRef
       .where("userId", "==", userId)
       .get();
 
-    return snapshot.docs.map((doc: any) => doc.data());
+    return snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
   } catch (error: any) {
     console.error("❌ 내 예약 불러오기 실패:", error);
     throw new Error(`내 예약 불러오기 중 오류 발생: ${error.message}`);

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>예약 버튼 테스트</title>
+</head>
+<body>
+  <h2>예약 버튼 누르기 (GET 요청 with 토큰)</h2>
+
+  <button id="bookingBtn">예약하기</button>
+
+  <h3>응답 결과</h3>
+  <pre id="output"></pre>
+
+  <script>
+    document.getElementById("bookingBtn").addEventListener("click", async () => {
+      const token = localStorage.getItem("idToken");
+
+      if (!token) {
+        document.getElementById("output").textContent = "❌ 로컬스토리지에 idToken이 없습니다.";
+        return;
+      }
+
+      try {
+        const res = await fetch("http://127.0.0.1:3000/api/sessions/booking", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          credentials: "include"  // 쿠키 포함
+        });
+
+        const result = await res.json();
+        document.getElementById("output").textContent = JSON.stringify(result, null, 2);
+      } catch (err) {
+        document.getElementById("output").textContent = `❌ 요청 실패: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { doc, setDoc } from "firebase/firestore";
 const admin = require("firebase-admin");
-import { auth, db, USER_COLLECTION } from '../utils/firebase'
+import { auth, db } from '../utils/firebase'
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import { RegisterPayload } from "../interfaces/auth";
 
@@ -56,36 +56,36 @@ export const registerUser = async (
 
 // 로그인 함수
 // 작성자 김다영
-export const loginUser = async (
-    payload: {
-        id: string,
-        password: string,
-    }) => {
-    try {
-        // 로그인
-        // id 찾기
-        const user = await db.collection("users")
-            .where("id", "==", payload.id)
-            .get();
+// export const loginUser = async (
+//     payload: {
+//         id: string,
+//         password: string,
+//     }) => {
+//     try {
+//         // 로그인
+//         // id 찾기
+//         const user = await db.collection("users")
+//             .where("id", "==", payload.id)
+//             .get();
         
 
-        // id가 없으면
-        if (user.empty) {
-            const error: any = new Error("id를 찾을 수 없습니다.");
-            error.code = 409;
-            throw error;
-        }
+//         // id가 없으면
+//         if (user.empty) {
+//             const error: any = new Error("id를 찾을 수 없습니다.");
+//             error.code = 409;
+//             throw error;
+//         }
 
-        //비밀번호 비교
-        if (user.password !== payload.password) {
-            const error: any = new Error("비밀번호가 일치하지 않습니다.");
-            error.code = 409;
-            throw error;
-        }
+//         //비밀번호 비교
+//         if (user.password !== payload.password) {
+//             const error: any = new Error("비밀번호가 일치하지 않습니다.");
+//             error.code = 409;
+//             throw error;
+//         }
 
-        return user;
-    } catch (error) {
-        console.error('Error login:', error);
-        throw error;
-    }
-};
+//         return user;
+//     } catch (error) {
+//         console.error('Error login:', error);
+//         throw error;
+//     }
+// };

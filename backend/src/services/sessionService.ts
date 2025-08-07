@@ -10,13 +10,12 @@ const collectionRef = db.collection(SESSION_COLLECTION);
  * @param userId Firebase UID (비회원은 빈 문자열 가능)
  * @returns 생성된 세션 ID
  */
-export async function initSession(userId: string = ""): Promise<{ sessionId: string; }> {
+export async function initSession(userId: string = "") {
   try {
     const sessionId = uuidv4();
     const now = new Date().toISOString();
 
     const sessionData: SessionPayload = {
-      sessionId,
       createdAt: now,
       isRegistered: false,
       visitApplyPageCount: 0,
@@ -26,7 +25,7 @@ export async function initSession(userId: string = ""): Promise<{ sessionId: str
 
     await collectionRef.doc(sessionId).set(sessionData);
 
-    return { sessionId };
+    return sessionId;
   } catch (error) {
     console.error("❌ 세션 생성 실패:", error);
     throw new Error("세션 초기화 중 오류 발생");

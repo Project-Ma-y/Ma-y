@@ -1,6 +1,5 @@
 // interfaces/session.ts
 export interface SessionPayload {
-  sessionId: string; // Firebase UID
   createdAt: string; // 최초 접속 시간 (필수)
   isRegistered: boolean; // 회원가입 완료 여부 (필수)
   registeredAt?: string; // 회원가입 완료 시간 (선택)
