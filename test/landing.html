@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>랜딩 세션 생성 테스트</title>
+</head>
+<body>
+  <h2>랜딩 페이지 세션 테스트 (GET /api/sessions/main)</h2>
+  <button id="noAuthBtn">비로그인 요청</button>
+  <button id="withAuthBtn">로그인된 사용자로 요청</button>
+
+  <h3>응답 결과</h3>
+  <pre id="output"></pre>
+
+  <script>
+    const output = document.getElementById("output");
+
+    // 공통 함수
+    async function callLandingAPI(withAuth = false) {
+      const idToken = localStorage.getItem("idToken");
+      const headers = withAuth && idToken
+        ? { "Authorization": `Bearer ${idToken}` }
+        : {};
+
+      try {
+        const res = await fetch("https://ma-y-5usy.onrender.com/api/sessions/main", {
+          method: "GET",
+          headers,
+          credentials: "include" // 세션 쿠키 받기
+        });
+
+        const text = await res.text();
+        output.textContent =
+          `✅ 요청 상태: ${res.status}\n\n응답 내용:\n${text}`;
+      } catch (err) {
+        output.textContent = `❌ 요청 실패: ${err.message}`;
+      }
+    }
+
+    document.getElementById("noAuthBtn").addEventListener("click", () => {
+      callLandingAPI(false);
+    });
+
+    document.getElementById("withAuthBtn").addEventListener("click", () => {
+      callLandingAPI(true);
+    });
+  </script>
+</body>
+</html>
