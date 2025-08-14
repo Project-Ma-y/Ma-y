@@ -10,11 +10,23 @@ export const updateLanding = async (req: Request, res: Response) => {
     let sessionId = req.cookies.sessionId;
     if (!sessionId) {
       sessionId = await initSession(req.user?.uid || "");
-      res.cookie("sessionId", sessionId, { httpOnly: true, secure: false, sameSite: "lax" });
+      res.status(201).cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" });
+    }
+    else{
+      res.status(200);
     }
 
-  } catch (error) {
-    res.status(500).json({ error: "세션 생성 실패", message: (error as Error).message });
+  } catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 세션 in updateLanding ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode);
   };
 }
 
@@ -37,7 +49,7 @@ export async function updateSignUpCompletion(req: Request, res: Response, userId
       userId //userId
     })
   } catch (error) {
-    res.status(500).json({ error: "세션 갱신 실패", message: (error as Error).message });
+    throw new Error("세션 갱신 실패 in updateSignUpCompletion");
   }
 }
 
@@ -50,7 +62,7 @@ export async function updateBookingPage(req: Request, res: Response) {
 
     //세션이 존재하지 않으면 생성
     if (!req.user || !req.user.uid) {
-      res.status(401).json({ error: "로그인 정보 없음" });
+      res.status(401).json({ message: "로그인 정보가 존재하지 않습니다." });
     }
     if (!sessionId) {
       const uid = req.user?.uid;
@@ -64,8 +76,15 @@ export async function updateBookingPage(req: Request, res: Response) {
     })
 
     res.status(200).json({ message: "세션 업데이트 완"});
-  } catch (error) {
-    res.status(500).json({ error: "세션 갱신 실패", message: (error as Error).message });
+  } catch (error: any) {
+    const statusCode = typeof error.code === "number" ? error.code : 500;
+    console.error(`[❌ 세션 업데이트 in updateBookingPage ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+    res.status(statusCode);
   }
 }
 
@@ -78,7 +97,7 @@ export async function updateBookingCompletion(req: Request, res: Response) {
 
     //세션이 존재하지 않으면 생성
     if (!req.user || !req.user.uid) {
-      return res.status(401).json({ error: "로그인 정보 없음" });
+      throw new Error("로그인 정보 없음 in updateBookingCompletion");
     }
     if (!sessionId) {
       const uid = req.user.uid;
@@ -90,8 +109,8 @@ export async function updateBookingCompletion(req: Request, res: Response) {
       applyCount: admin.firestore.FieldValue.increment(1),
       lastApplyAt: now
     });
-  } catch (error) {
-    res.status(500).json({ error: "세션 갱신 실패", message: (error as Error).message });
+  } catch (error: any) {
+    throw new Error("세션 갱신 실패 in updateBookingCompletion");
   }
 }
 

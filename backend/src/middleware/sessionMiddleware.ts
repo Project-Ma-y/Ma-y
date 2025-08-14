@@ -12,7 +12,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
   if (!sessionId){
     console.log("loadSession에서 세션id 못찾음"); //test
     sessionId = await initSession(req.user?.uid || "");
-    res.cookie("sessionId", sessionId, { httpOnly: true, secure: false, sameSite: "lax" }); //test
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
   }
 
   //세션 못 찾을 시 생성
@@ -23,7 +23,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     sessionId = await initSession(req.user?.uid || "");
     sessionRef = await db.collection("sessions").doc(sessionId);
     doc = await sessionRef.get();
-    res.cookie("sessionId", sessionId, { httpOnly: true, secure: false, sameSite: "lax" }); //test
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
   }
 
   req.sessionData= doc.data();
