@@ -26,6 +26,7 @@ declare global {
 
 const allowedOrigins = [
   "http://127.0.0.1:3000",
+  "https://project-ma-y.github.io"
 ];
 
 const app: Express = express();
