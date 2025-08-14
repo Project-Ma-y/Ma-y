@@ -13,7 +13,7 @@ export const updateLanding = async (req: Request, res: Response) => {
       res.status(201).cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" });
     }
     else{
-      res.status(200);
+      res.status(200).json({ message: "세션 생성 성공"});
     }
 
   } catch (error: any) {
