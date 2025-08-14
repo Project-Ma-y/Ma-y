@@ -10,10 +10,10 @@ export const updateLanding = async (req: Request, res: Response) => {
     let sessionId = req.cookies.sessionId;
     if (!sessionId) {
       sessionId = await initSession(req.user?.uid || "");
-      res.status(201).cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" });
+      res.status(201).cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }).json({ message: "세션 생성 성공"});
     }
     else{
-      res.status(200).json({ message: "세션 생성 성공"});
+      res.status(200).json({ message: `이미 세션이 있습니다. sessionId: ${sessionId}`});
     }
 
   } catch (error: any) {
