@@ -2,7 +2,7 @@
 import { getFirestore, collection } from "firebase/firestore";
 import dotenv from "dotenv";
 import { credential } from "firebase-admin";
-import { applicationDefault } from "firebase-admin/app";
+import { applicationDefault, cert } from "firebase-admin/app";
 dotenv.config();
 const admin = require("firebase-admin");
 // TODO: Add SDKs for Firebase products that you want to use
@@ -21,11 +21,17 @@ const firebaseConfig = {
   databaseURL: process.env.FB_DATABASEURL
 };
 
+const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+
 // // Initialize Firebase
 // const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 
-admin.initializeApp(firebaseConfig);
+if(process.env.HOST){
+  admin.initializeApp({
+  credential: cert(serviceAccount)
+});
+} else admin.initializeApp(firebaseConfig);
 
 console.log(admin.firestore());
 export const auth = admin.auth();     // for 인증
