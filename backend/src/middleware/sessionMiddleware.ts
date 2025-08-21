@@ -17,6 +17,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
   if (!sessionId){
     console.log("loadSession에서 세션id 못찾음"); //test
     sessionId = await initSession(req.user?.uid || "");
+    req.cookies.sessionId = sessionId;
     res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
   }
 
@@ -26,6 +27,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
   if (!doc.exists){
     console.log("loadSession에서 doc 쿠키 못찾음"); //test
     sessionId = await initSession(req.user?.uid || "");
+    req.cookies.sessionId = sessionId;
     sessionRef = await db.collection("sessions").doc(sessionId);
     doc = await sessionRef.get();
     res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
