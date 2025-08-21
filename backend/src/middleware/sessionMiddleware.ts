@@ -35,3 +35,14 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
   req.sessionRef = sessionRef;
   next();}
 };
+
+
+// 미들웨어: 이 라우트만 캐시 금지 + ETag 끄기
+export const noCache = async (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  // ETag 비활성화: 이 응답에 대해선 생성하지 않게
+  res.removeHeader("ETag");
+  next();
+};
