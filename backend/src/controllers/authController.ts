@@ -3,6 +3,7 @@ import { registerUser } from '../services/authService'
 import { validateRegisterPayload } from "../validators/registerValidator";
 import { updateSignUpCompletion } from "./sessionsController";
 
+const allowedAdminUids = (process.env.ALLOWED_ADMIN_UIDS ?? "").split(",");
 
 // 회원가입 컨트롤러
 // 작성자 김다영
@@ -59,4 +60,16 @@ export const testAuth = async (req: Request, res: Response) => {
       message: "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
     });
   }
+}
+
+export const adminCheck = async (req: Request, res: Response) => {
+  const uid = (req as any).user?.uid; // verifyFirebaseToken에서 채워넣음
+
+  if (!uid) {
+    res.status(401).json({ error: "인증되지 않은 사용자입니다." });
+    return;
+  }
+  const isAdmin = allowedAdminUids.includes(uid);
+
+  res.status(200).json({ isAdmin });
 }
