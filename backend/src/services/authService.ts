@@ -11,15 +11,15 @@ export const registerUser = async (
     payload: RegisterPayload) => {
     try {
         // 중복 검사: email 기준
-        const snapshot = await db.collection("users")
-            .where("email", "==", payload.email)
-            .get();
+        // const snapshot = await db.collection("users")
+        //     .where("email", "==", payload.email)
+        //     .get();
 
-        if (!snapshot.empty) {
-            const error: any = new Error("이미 등록된 이메일입니다.");
-            error.code = 409;
-            throw error;
-        }
+        // if (!snapshot.empty) {
+        //     const error: any = new Error("이미 등록된 이메일입니다.");
+        //     error.code = 409;
+        //     throw error;
+        // }
 
         // 파이어베이스 회원가입
         const credential = await auth.createUser({
@@ -32,10 +32,6 @@ export const registerUser = async (
         await db.collection("users").doc(credential.uid).set({
             isDeleted: false,
             customerType: payload.customerType,            
-            agreements: {
-                version: payload.agreements.version,
-                date: payload.agreements.date
-            },
             email: payload.email,
             password: payload.password,
             name: payload.name,
@@ -43,7 +39,6 @@ export const registerUser = async (
             gender: payload.gender,
             address: payload.address,
             birthdate: payload.birthdate,
-            registeredParents: payload.registeredParents || [],
 
             createdAt: Date.now(),
             updatedAt: Date.now()

@@ -2,6 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,firebase,node,windows
 
 /public_test
+src/middleware/allowedAdminUids.ts
 
 ### Firebase ###
 .idea

@@ -1,9 +1,9 @@
 export interface RegisterPayload {
   isDeleted: boolean;
   customerType: 'family' | 'senior'; //가족/시니어
-  agreements: {
-    version: string;
-    date: string;
+  agreements?: {
+    version?: string;
+    date?: string;
   };
   email: string; //이메일
   password: string; //비밀번호
@@ -13,10 +13,9 @@ export interface RegisterPayload {
   gender: string; //성별
   address: string; //주소
   birthdate: string; //생년월일 ISO 8601
-  registeredParents?: {
-    name: string;
-    phoneNumber: string;
-    address: string;
-    birthdate: string;
-  }[];
+  registeredFamily?: Array<{
+    uid?: string;                 // 가족 사용자 uid 참조
+    relation?: string;           // 'daughter' 등 (옵션)
+    linkedAt?: string;           // ISO, 옵션
+  }>;
 }
