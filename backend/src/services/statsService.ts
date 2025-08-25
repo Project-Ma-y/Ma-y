@@ -17,6 +17,7 @@ export const getSignupConversionService = async () =>{
     const snapshotB = await sumAggregateQuery.get();
 
     const signupConversion = snapshotB.data().totalUserId / snapshotA.data().count;
+    console.log(`회원가입 완려한 세션 id 개수: ${snapshotB.data().totalUserId}, 세션 id 개수: ${snapshotA.data().count}`) //test
     return signupConversion;
   } catch (error) {
     console.error("❌ getSignupConversionService 오류:", error);
