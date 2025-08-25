@@ -36,7 +36,7 @@ export const registerHandler = async (req: Request, res: Response) => {
     });
 
     res.status(statusCode).json({
-      message: error.message || "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
+      message: "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
     });
   }
 };
@@ -56,7 +56,7 @@ export const testAuth = async (req: Request, res: Response) => {
     });
 
     res.status(statusCode).json({
-      message: error.message || "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
+      message: "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
     });
   }
 }

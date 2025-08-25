@@ -44,19 +44,19 @@ export function validateRegisterPayload(payload: RegisterPayload): string[] {
   }
 
   // ✅ 부모 정보가 존재한다면 각 부모의 birthdate도 검사
-  if (Array.isArray(payload.registeredParents)) {
-    payload.registeredParents.forEach((parent, index) => {
-      if (
-        !parent.birthdate ||
-        typeof parent.birthdate !== "string" ||
-        !isValidDateString(parent.birthdate)
-      ) {
-        errors.push(
-          `등록된 보호자 ${index + 1}의 생년월일은 'YYYY-MM-DD' 형식의 올바른 날짜여야 합니다.`
-        );
-      }
-    });
-  }
+  // if (Array.isArray(payload.registeredParents)) {
+  //   payload.registeredParents.forEach((parent, index) => {
+  //     if (
+  //       !parent.birthdate ||
+  //       typeof parent.birthdate !== "string" ||
+  //       !isValidDateString(parent.birthdate)
+  //     ) {
+  //       errors.push(
+  //         `등록된 보호자 ${index + 1}의 생년월일은 'YYYY-MM-DD' 형식의 올바른 날짜여야 합니다.`
+  //       );
+  //     }
+  //   });
+  // }
 
   return errors;
 }
