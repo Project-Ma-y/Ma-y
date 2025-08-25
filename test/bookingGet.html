@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>예약 조회 테스트</title>
+</head>
+<body>
+  <h2>예약 조회 테스트</h2>
+
+  <button id="getAll">전체 예약 조회 (관리자)</button>
+  <button id="getMy">내 예약 조회</button>
+  <input type="text" id="bookingId" placeholder="예약 ID 입력" />
+  <button id="getById">특정 예약 조회</button>
+
+  <h3>응답 결과</h3>
+  <pre id="output"></pre>
+
+  <script>
+    const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
+    const output = document.getElementById("output");
+
+    async function fetchWithToken(url) {
+      const token = localStorage.getItem("idToken");
+
+      if (!token) {
+        output.textContent = "❌ 토큰 없음. 먼저 로그인하세요.";
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          credentials: "include"
+        });
+
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        output.textContent = `❌ 요청 실패: ${err.message}`;
+      }
+    }
+
+    document.getElementById("getAll").addEventListener("click", () => {
+      fetchWithToken(`${BASE_URL}/admin`);
+    });
+
+    document.getElementById("getMy").addEventListener("click", () => {
+      fetchWithToken(`${BASE_URL}/my`);
+    });
+
+    document.getElementById("getById").addEventListener("click", () => {
+      const bookingId = document.getElementById("bookingId").value.trim();
+      if (!bookingId) {
+        output.textContent = "❌ 예약 ID를 입력하세요.";
+        return;
+      }
+      fetchWithToken(`${BASE_URL}/${bookingId}`);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<button id="logoutBtn">로그아웃</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyALislKfX7MQeh1IteqWiiaxYGJ_KrNZN4",
+    authDomain: "ma-y-b1fa6.firebaseapp.com",
+    projectId: "ma-y-b1fa6",
+    storageBucket: "ma-y-b1fa6.appspot.com",
+    messagingSenderId: "48645617538",
+    appId: "1:48645617538:web:23d556cdd2c5b223b2019b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem("idToken");
+      alert("✅ 로그아웃 완료!");
+    } catch (error) {
+      alert("❌ 로그아웃 실패: " + error.message);
+    }
+  });
+</script>

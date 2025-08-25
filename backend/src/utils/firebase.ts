@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { credential } from "firebase-admin";
 import { applicationDefault, cert } from "firebase-admin/app";
 dotenv.config();
-const admin = require("firebase-admin");
+export const admin = require("firebase-admin");
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -21,13 +21,12 @@ const firebaseConfig = {
   databaseURL: process.env.FB_DATABASEURL
 };
 
-const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
-
 // // Initialize Firebase
 // const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 
 if(process.env.HOST){
+  const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
   admin.initializeApp({
   credential: cert(serviceAccount)
 });
@@ -36,4 +35,4 @@ if(process.env.HOST){
 console.log(admin.firestore());
 export const auth = admin.auth();     // for 인증
 export const db = admin.firestore();    // for 데이터베이스
-export const USER_COLLECTION = db.collection("users");
+export const fstore = admin.firestore;
