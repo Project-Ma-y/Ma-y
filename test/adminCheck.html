@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Check Test</title>
+</head>
+<body>
+  <h1>관리자 여부 확인</h1>
+
+  <p>버튼을 누르면 localStorage에 저장된 <code>token</code> 과 <code>uid</code>를 불러와
+  /checkAdmin API로 전송합니다. (쿠키는 자동 포함)</p>
+
+  <button id="checkBtn">/checkAdmin 요청 보내기</button>
+
+  <h2>응답 결과:</h2>
+  <pre id="result"></pre>
+
+  <script>
+    document.getElementById("checkBtn").addEventListener("click", async () => {
+      // localStorage에서 토큰 + UID 꺼내기
+      const token = localStorage.getItem("idToken");
+      const uid = localStorage.getItem("uid");
+
+      if (!token || !uid) {
+        document.getElementById("result").textContent = "⚠️ localStorage에 token/uid가 없습니다.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://ma-y-5usy.onrender.com/api/auth/checkAdmin`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          credentials: "include" // ✅ 쿠키 포함
+        });
+
+        const data = await response.json();
+        document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("result").textContent = "❌ 요청 실패: " + err;
+      }
+    });
+  </script>
+</body>
+</html>
