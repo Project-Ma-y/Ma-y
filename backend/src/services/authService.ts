@@ -30,6 +30,7 @@ export const registerUser = async (
 
         //유저 정보 users에 저장
         await db.collection("users").doc(credential.uid).set({
+            isDeleted: false,
             customerType: payload.customerType,            
             agreements: {
                 version: payload.agreements.version,
