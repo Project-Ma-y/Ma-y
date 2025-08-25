@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { allowedAdminUids } from "./allowedAdminUids"
+
+// env에 저장한 값 불러오기
+const allowedAdminUids = (process.env.ALLOWED_ADMIN_UIDS ?? "").split(",");
 
 export function checkAdminUid(req: Request, res: Response, next: NextFunction) {
   const UID = req.user?.uid;
