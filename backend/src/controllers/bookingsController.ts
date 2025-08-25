@@ -20,8 +20,8 @@ export const createBooking = async (req: Request, res: Response) => {
     const userType = userData.role;
     const bookingPayload: Partial<BookingPayload> = {
       userId,
-      bookingDate: req.body.bookingDate,
-      bookingTime: req.body.bookingTime,
+      startBookingTime: req.body.startBookingTime,
+      endBookingTime: req.body.endBookingTime,
       departureAddress: req.body.departureAddress,
       destinationAddress: req.body.destinationAddress,
       roundTrip: req.body.roundTrip,
@@ -60,12 +60,21 @@ export const createBooking = async (req: Request, res: Response) => {
 };
 
 //예약 전체 조회
-export const getAllBookings = async (_req: Request, res: Response) => {
+export const getAllBookings = async (req: Request, res: Response) => {
   try {
     const bookings = await getAllBookingsService();
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (error: any) {
-    res.status(500).json({ error: "전체 예약 불러오기 실패", message: error.message });
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 예약 in getAllBokkings ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({ message: "예약 조회 실패"});
   }
 };
 
@@ -81,10 +90,18 @@ export const getBookingById = async (req: Request, res: Response) => {
       throw error;
     }
 
-    res.json(booking);
+    res.status(200).json(booking);
   } catch (error: any) {
-    const statusCode = typeof error.code === "number" ? error.code : 500;
-    res.status(statusCode).json({ error: "예약 조회 실패", message: error.message });
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 예약 in getBookingById ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({message: "예약 조회 실패"});
   }
 };
 
@@ -106,9 +123,17 @@ export const getMyBookings = async (req: Request, res: Response) => {
       throw error;
     }
 
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (error: any) {
-    const statusCode = typeof error.code === "number" ? error.code : 500;
-    res.status(statusCode).json({ error: "내 예약 조회 실패", message: error.message });
+        const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 유저 in getMyBookings ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({message: "내 예약 조회 실패"});
   }
 };

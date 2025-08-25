@@ -12,7 +12,7 @@ export interface RegisterPayload {
   phone: string; //전화번호
   gender: string; //성별
   address: string; //주소
-  birthdate: string; //생년월일
+  birthdate: string; //생년월일 ISO 8601
   registeredParents?: {
     name: string;
     phoneNumber: string;
