@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #f7b349;
+  /* --color-white: #ffffff; */
+  --text-body-1: clamp(14px, 2.5vw, 16px);
+  --font-weight-semibold: 600;
+}
+
+@layer base {
+  html {
+    font-family: sans-serif;
+  }
+}
