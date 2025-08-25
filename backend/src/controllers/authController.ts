@@ -63,13 +63,29 @@ export const testAuth = async (req: Request, res: Response) => {
 }
 
 export const adminCheck = async (req: Request, res: Response) => {
-  const uid = (req as any).user?.uid; // verifyFirebaseToken에서 채워넣음
+  try {
+    const uid = (req as any).user?.uid; // verifyFirebaseToken에서 채워넣음
 
-  if (!uid) {
-    res.status(401).json({ error: "인증되지 않은 사용자입니다." });
-    return;
+    if (!uid) {
+      res.status(401).json({ error: "인증되지 않은 사용자입니다." });
+      return;
+    }
+    const isAdmin = allowedAdminUids.includes(uid);
+
+    res.status(200).json({ isAdmin })
   }
-  const isAdmin = allowedAdminUids.includes(uid);
+  catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
 
-  res.status(200).json({ isAdmin });
+    console.error(`[❌ 인증 in adminCheck ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({
+      message: "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
+    });
+  }
 }
