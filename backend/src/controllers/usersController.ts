@@ -34,7 +34,7 @@ export const getUserById = async (req: Request, res: Response) => {
       user: req.sessionData?.userId || "unknown"
     });
 
-    res.status(statusCode).json({message: "error"});
+    res.status(statusCode).json({message: "유저 정보 찾기 실패"});
   }
 };
 
@@ -53,6 +53,6 @@ export const deleteUser = async (req: Request, res: Response) => {
       user: req.sessionData?.userId || "unknown"
     });
 
-    res.status(statusCode).json({message: "가입자 목록 조회 실패"});
+    res.status(statusCode).json({message: "유저 삭제 실패"});
   }
 };

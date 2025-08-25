@@ -26,7 +26,7 @@ export const updateLanding = async (req: Request, res: Response) => {
       user: req.sessionData?.userId || "unknown"
     });
 
-    res.status(statusCode);
+    res.status(statusCode).json({message: "세션 생성 오류 발생"});
   };
 }
 
@@ -62,7 +62,7 @@ export async function updateBookingPage(req: Request, res: Response) {
 
     //세션이 존재하지 않으면 생성
     if (!req.user || !req.user.uid) {
-      res.status(401).json({ message: "로그인 정보가 존재하지 않습니다." });
+      throw new Error("로그인 정보가 존재하지 않습니다.");
     }
     if (!sessionId) {
       const uid = req.user?.uid;
@@ -75,7 +75,7 @@ export async function updateBookingPage(req: Request, res: Response) {
       lastVisitApplyPageAt: now // 최근 도달 시간
     })
 
-    res.status(200).json({ message: "세션 업데이트 완"});
+    res.status(200).json({ message: "세션 업데이트 완료"});
   } catch (error: any) {
     const statusCode = typeof error.code === "number" ? error.code : 500;
     console.error(`[❌ 세션 업데이트 in updateBookingPage ${req.method} ${req.originalUrl}]`, {
@@ -84,7 +84,7 @@ export async function updateBookingPage(req: Request, res: Response) {
       stack: error.stack,
       user: req.sessionData?.userId || "unknown"
     });
-    res.status(statusCode);
+    res.status(statusCode).json({message:"세션 생성 오류 발생"});
   }
 }
 
