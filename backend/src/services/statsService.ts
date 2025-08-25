@@ -11,13 +11,13 @@ export const getSignupConversionService = async () =>{
     //세션 id 개수
     const snapshotA = await collectionRef.count().get();
     //회원가입 완료한 세션 id 개수
-    const sumAggregateQuery = collectionRef.aggregate({
-         totalUserId: AggregateField.sum('isRegistered'),
-       });
-    const snapshotB = await sumAggregateQuery.get();
+    const snapshotB = await collectionRef
+      .where("isRegistered", "==", true)
+      .count()
+      .get();
 
     const signupConversion = snapshotB.data().totalUserId / snapshotA.data().count;
-    console.log(`회원가입 완려한 세션 id 개수: ${snapshotB.data().totalUserId}, 세션 id 개수: ${snapshotA.data().count}`) //test
+    console.log(`회원가입 완료한 세션 id 개수: ${snapshotB.data().totalUserId}, 세션 id 개수: ${snapshotA.data().count}`) //test
     return signupConversion;
   } catch (error) {
     console.error("❌ getSignupConversionService 오류:", error);
