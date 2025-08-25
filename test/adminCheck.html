@@ -18,7 +18,7 @@
   <script>
     document.getElementById("checkBtn").addEventListener("click", async () => {
       // localStorage에서 토큰 + UID 꺼내기
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("idToken");
       const uid = localStorage.getItem("uid");
 
       if (!token || !uid) {
