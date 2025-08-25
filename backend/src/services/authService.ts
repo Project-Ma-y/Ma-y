@@ -30,7 +30,7 @@ export const registerUser = async (
 
         //유저 정보 users에 저장
         await db.collection("users").doc(credential.uid).set({
-            role: payload.role, //guardian or companion            
+            customerType: payload.customerType,            
             agreements: {
                 version: payload.agreements.version,
                 date: payload.agreements.date
@@ -38,7 +38,8 @@ export const registerUser = async (
             email: payload.email,
             password: payload.password,
             name: payload.name,
-            phoneNumber: payload.phoneNumber,
+            phone: payload.phone,
+            gender: payload.gender,
             address: payload.address,
             birthdate: payload.birthdate,
             registeredParents: payload.registeredParents || [],
@@ -49,7 +50,7 @@ export const registerUser = async (
 
         return credential;
     } catch (error) {
-        console.error('Error creating new user:', error);
+        console.error('Error creating new user in registerUser:', error);
         throw error;
     }
 };

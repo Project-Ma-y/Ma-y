@@ -25,11 +25,18 @@ export const registerHandler = async (req: Request, res: Response) => {
 
     res.status(201).json({ uid: user.uid, message: '회원가입 성공' });
 
-  } catch (err: any) {
-    const statusCode = typeof err.code === 'number' ? err.code : 500;
+  } catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 회원가입 in registerHandler ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
     res.status(statusCode).json({
-      message: err.message || '회원가입 실패',
-      error: err.stack,
+      message: error.message || "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
     });
   }
 };
@@ -38,11 +45,18 @@ export const registerHandler = async (req: Request, res: Response) => {
 export const testAuth = async (req: Request, res: Response) => {
   try {
     res.status(200).json({ message: '테스트 성공' });
-  } catch (err: any) {
-    const statusCode = typeof err.code === 'number' ? err.code : 502;
+  } catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 502;
+
+    console.error(`[❌ 인증 테스트 in testAuth ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
     res.status(statusCode).json({
-      message: err.message || '테스트 실패',
-      error: err.stack,
+      message: error.message || "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요."
     });
   }
 }

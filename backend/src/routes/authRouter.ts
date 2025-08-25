@@ -7,6 +7,6 @@ import { loadSession, noCache } from "../middleware/sessionMiddleware";
 const router = Router();
 
 router.post("/signupEmail", loadSession, noCache, registerHandler); //회원가입 + 세션
-router.get("/auth", verifyFirebaseToken, loadSession, testAuth);
+router.get("/test", verifyFirebaseToken, loadSession, testAuth);
 
 export default router;

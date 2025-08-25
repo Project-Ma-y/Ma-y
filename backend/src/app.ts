@@ -3,8 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import bookingsRouter from "./routes/bookingsRouter";
-import usersRouter from "./routes/authRouter";
+import authRouter from "./routes/authRouter";
 import sessionsRouter from "./routes/sessionsRouter";
+import usersRouter from "./routes/usersRouter";
+import statsRouter from "./routes/statsRouter"
 import { DecodedIdToken } from "firebase-admin/auth";
 import cookieParser from "cookie-parser";
 import { SessionPayload } from "./interfaces/session";
@@ -50,8 +52,10 @@ app.use(
   })
 );
 app.use("/api/booking", bookingsRouter);
-app.use("/api/users", usersRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/sessions", sessionsRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/stats", statsRouter);
 
 //테스트용 정적파일
 const testPath = path.join(__dirname, '../../test');
