@@ -32,7 +32,7 @@ export const getApplicationReachService = async () =>{
     //세션 id 개수
     const snapshotA = await collectionRef.count().get();
     //동행 신청 페이지 도달 횟수가 1 이상인 id 개수
-    const snapshotB = await collectionRef.where('visitApplyPageCount', '>', 0).get();
+    const snapshotB = await collectionRef.where('visitApplyPageCount', '>', 0).count().get();
 
     const applicationReach = snapshotB.data().count / snapshotA.data().count;
     return applicationReach;
@@ -49,7 +49,7 @@ export const getApplicationConversionService = async () =>{
     //세션 id 개수
     const snapshotA = await collectionRef.count().get();
     //동행 신청 페이지 도달 횟수가 1 이상인 id 개수
-    const snapshotB = await collectionRef.where('applyCount', '>', 0).get();
+    const snapshotB = await collectionRef.where('applyCount', '>', 0).count().get();
 
     const applicationConversion = snapshotB.data().count / snapshotA.data().count;
     return applicationConversion;
