@@ -27,7 +27,7 @@
       }
 
       try {
-        const response = await fetch(`http://localhost:3000/checkAdmin?uid=${uid}`, {
+        const response = await fetch(`https://ma-y-5usy.onrender.com/api/auth/checkAdmin`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
