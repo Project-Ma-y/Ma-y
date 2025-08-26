@@ -103,7 +103,7 @@ if (!payload || !payload.id) {
     const userRecord = await getUserByIdService(payload.id);
     // uid 찾기
     let userId;
-    if(userRecord) userId = userRecord.getUid();
+    if(userRecord) userId = userRecord.uid;
     
 
     // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
