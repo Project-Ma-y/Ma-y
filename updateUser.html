@@ -94,7 +94,7 @@
         if (birthdate) payload.birthdate = new Date(birthdate).toISOString();
 
         // PUT 요청
-        const res = await fetch(`https://ma-y-5usy.onrender.com/api/user/${userId}`, {
+        const res = await fetch(`https://ma-y-5usy.onrender.com/api/users/${userId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
