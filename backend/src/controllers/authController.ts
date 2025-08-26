@@ -102,7 +102,7 @@ export const adminCheck = async (req: Request, res: Response) => {
 }
 
 //부모 등록
-export const registerParent = async (req: Request, res: Response) => {
+export const  registerParent = async (req: Request, res: Response) => {
   try {
     // 부모 정보 배열 처리
     const parents = Array.isArray(req.body) ? req.body : [req.body];

@@ -129,7 +129,7 @@ if (!payload || !payload.id) {
 
 export const updateUserServiceUID = async (userId: string, payload: Partial<RegisterPayload>) => {
   try {
-if (!payload || !payload.id) {
+if (!payload || !userId) {
       throw new Error("정보가 존재하지 않습니다");
     }
     // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
