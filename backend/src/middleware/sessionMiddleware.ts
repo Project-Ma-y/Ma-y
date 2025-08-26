@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { db } from "../utils/firebase";
 import { initSession } from "../services/sessionService";
 
+const isProduction = process.env.NODE_ENV === "production";
 const skipPaths = ["/api/sessions/main"];
 
 export const loadSession = async (req: Request, res: Response, next: NextFunction) => {
@@ -18,7 +19,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     console.log("loadSession에서 세션id 못찾음"); //test
     sessionId = await initSession(req.user?.uid || "");
     req.cookies.sessionId = sessionId;
-    res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
   }
 
   //세션 못 찾을 시 생성
@@ -30,7 +31,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     req.cookies.sessionId = sessionId;
     sessionRef = await db.collection("sessions").doc(sessionId);
     doc = await sessionRef.get();
-    res.cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }); //test
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
   }
 
   req.sessionData= doc.data();
