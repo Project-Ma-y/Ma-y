@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { registerParentService, registerUser } from '../services/authService'
-import { getUserByIdService, updateUserService } from "../services/usersService";
+import { getUserByIdService, updateUserService, getUserByUIDService } from "../services/usersService";
 import { validateRegisterPayload } from "../validators/registerValidator";
 import { updateSignUpCompletion } from "./sessionsController";
 
@@ -121,7 +121,7 @@ export const registerParent = async (req: Request, res: Response) => {
     );
 
     // 현재 로그인한 가족 유저 찾기
-    const family = await getUserByIdService(req.user?.uid);
+    const family = await getUserByUIDService(req.user?.uid);
     if (!family) {
       const error: any = new Error("해당 가족 유저를 찾을 수 없습니다.");
       error.code = 404;
