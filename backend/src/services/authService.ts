@@ -82,20 +82,7 @@ export const registerParentService = async (
     };
 
         //유저 정보 users에 저장
-        await db.collection("users").doc(credential.uid).set({
-            isDeleted: false,
-            customerType: payload.customerType,            
-            id: payload.id,
-            password: payload.password,
-            name: payload.name,
-            phone: payload.phone,
-            gender: payload.gender,
-            address: payload.address,
-            birthdate: payload.birthdate,
-
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        });
+        await db.collection("users").doc(credential.uid).set(userDoc);
 
         return credential;
     } catch (error) {
