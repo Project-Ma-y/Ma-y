@@ -19,7 +19,7 @@ export const registerHandler = async (req: Request, res: Response) => {
       throw error;
     }
 
-    const exists = await getUserByIdService(req.body.Id);
+    const exists = await getUserByIdService(req.body.id);
     let user;
 
     //기존 DB에 존재하는 지 확인

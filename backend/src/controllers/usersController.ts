@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getAllUsersService, getUserByUIDService, deleteUserService, updateUserService } from "../services/usersService";
+import { getAllUsersService, getUserByUIDService, deleteUserService, updateUserService, updateUserServiceUID } from "../services/usersService";
 import { REPLCommand } from "repl";
 
 export const getAllUsers = async (req: Request, res: Response) => {
@@ -87,7 +87,7 @@ export const getMyProfile = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await updateUserService(id);
+    await updateUserServiceUID(id, req.body);
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;

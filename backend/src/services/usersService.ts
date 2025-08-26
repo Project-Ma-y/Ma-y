@@ -124,3 +124,29 @@ if (!payload || !payload.id) {
     throw error;
   }
 }
+
+
+
+export const updateUserServiceUID = async (userId: string, payload: Partial<RegisterPayload>) => {
+  try {
+if (!payload || !payload.id) {
+      throw new Error("정보가 존재하지 않습니다");
+    }
+    // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
+    const updateAuthPayload: any = {};
+    if (payload.password) updateAuthPayload.password = payload.password;
+    if (payload.name) updateAuthPayload.displayName = payload.name;
+
+    if (Object.keys(updateAuthPayload).length > 0) {
+      await auth.updateUser(userId, updateAuthPayload);
+    }
+
+    //유저 정보 users에 업데이트
+    const userRecord = await db.collection("users").doc(userId).update(payload);
+
+    return userRecord;
+  } catch (error) {
+    console.error('Error updating user in updateUserService:', error);
+    throw error;
+  }
+}
