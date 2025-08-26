@@ -23,7 +23,7 @@ export const registerUser = async (
         // }
 
         // 아이디 처리
-        const mayIdEmail = `${payload.id}+${mayEmail}`;
+        const mayIdEmail = `${payload.id}${mayEmail}`;
 
         // 파이어베이스 회원가입
         const credential = await auth.createUser({
@@ -59,7 +59,7 @@ export const registerParentService = async (
     payload: RegisterPayload) => {
     try {
         // 아이디 처리
-        const mayIdEmail = `${payload.id} + ${mayEmail}`;
+        const mayIdEmail = `${payload.id}${mayEmail}`;
 
         // 파이어베이스 회원가입
         const credential = await auth.createUser({
