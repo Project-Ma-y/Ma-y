@@ -2,12 +2,14 @@ import { doc, setDoc, DocumentReference } from "firebase/firestore";
 const admin = require("firebase-admin");
 import { QueryDocumentSnapshot, DocumentData } from "firebase-admin/firestore";
 import { auth, db } from '../utils/firebase'
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import { mayEmail } from "./authService";
+import { RegisterPayload } from "../interfaces/auth";
 
 const USER_COLLECTION = "users"
 const collectionRef = db.collection(USER_COLLECTION);
 
-export const getUserByIdService = async (userId: any) => {
+export const getUserByUIDService = async (userId: any) => {
   try {
     if (!userId) {
       throw new Error("userId가 존재하지 않습니다");
@@ -45,7 +47,7 @@ export const getAllUsersService = async () => {
   }
 }
 
-export const deleteUserService = async (userId: any) => {
+export const deleteUserService = async (userId: string) => {
   try {
     if (!userId) {
       const error = new Error("userId가 존재하지 않습니다");
@@ -70,6 +72,55 @@ export const deleteUserService = async (userId: any) => {
   }
 }
 
-export const updateUserInfo = async () => {
+export const getUserByIdService = async (id: any) => {
+  try {
+    if (!id) {
+      throw new Error("Id가 존재하지 않습니다");
+    }
 
+    const email = `${id}${mayEmail}`; // id + 이메일 도메인 결합
+    //파이어베이스에서 검색
+    const userData = await admin.auth().getUsers([{ email }]);
+    // 사용자 존재 여부 확인
+    if (userData.users.length > 0) {
+      return userData.users[0]; // 첫 번째 사용자 반환
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error("❌ 유저 정보 찾기 실패:", error);
+    throw new Error("유저 정보 찾는 중 오류 발생");
+  }
+}
+
+
+export const updateUserService = async (payload: Partial<RegisterPayload>) => {
+  try {
+if (!payload || !payload.id) {
+      throw new Error("정보가 존재하지 않습니다");
+    }
+
+    const userRecord = await getUserByIdService(payload.id);
+    // uid 찾기
+    let userId;
+    if(userRecord) userId = userRecord.getUid();
+    
+
+    // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
+    const updateAuthPayload: any = {};
+    if (payload.password) updateAuthPayload.password = payload.password;
+    if (payload.name) updateAuthPayload.displayName = payload.name;
+
+    if (Object.keys(updateAuthPayload).length > 0) {
+      await auth.updateUser(userId, updateAuthPayload);
+    }
+
+    //유저 정보 users에 업데이트
+    await db.collection("users").doc(userId).update(payload);
+
+    return userRecord;
+  } catch (error) {
+    console.error('Error updating user in updateUserService:', error);
+    throw error;
+  }
 }

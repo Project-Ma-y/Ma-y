@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { createBookingService, getAllBookingsService, getBookingByIdService, getMyBookingsService } from "../services/bookingService";
 import { updateBookingCompletion } from "./sessionsController";
-import { getUserByIdService } from "../services/usersService";
+import { getUserByUIDService } from "../services/usersService";
 import { BookingPayload } from "../interfaces/booking";
 
 //예약하기
@@ -16,7 +16,7 @@ export const createBooking = async (req: Request, res: Response) => {
       error.code = 401;
       throw error;
     }
-    const userData = await getUserByIdService(userId);
+    const userData = await getUserByUIDService(userId);
     const userType = userData.role;
     const bookingPayload: Partial<BookingPayload> = {
       userId,
