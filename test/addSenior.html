@@ -94,7 +94,7 @@
       });
 
       try {
-        const token = localStorage.getItem("token"); // Firebase 토큰
+        const token = localStorage.getItem("idToken"); // Firebase 토큰
         const uid = localStorage.getItem("uid");
 
         const response = await fetch("https://ma-y-5usy.onrender.com/api/auth/signupSenior", {
