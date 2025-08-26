@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>부모 회원가입 테스트</title>
+</head>
+<body>
+  <h1>부모 회원가입 테스트</h1>
+  
+  <form id="parentForm">
+    <label>부모 아이디: <input type="text" name="id" required /></label><br /><br />
+    <label>비밀번호: <input type="password" name="password" required /></label><br /><br />
+    <label>비밀번호 확인: <input type="password" name="pwVerify" required /></label><br /><br />
+    <label>이름: <input type="text" name="name" required /></label><br /><br />
+    <label>전화번호: <input type="text" name="phone" required /></label><br /><br />
+    <label>성별: 
+      <select name="gender" required>
+        <option value="male">남성</option>
+        <option value="female">여성</option>
+      </select>
+    </label><br /><br />
+    <label>생년월일: <input type="date" name="birthdate" required /></label><br /><br />
+    <label>관계: <input type="text" name="relation" placeholder="daughter 등" required /></label><br /><br />
+    <button type="submit">부모 회원가입</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById("parentForm");
+    const resultDiv = document.getElementById("result");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      // 폼 데이터 수집
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+
+      try {
+        // ✅ 로컬스토리지에서 uid, idToken 가져오기
+        const uid = localStorage.getItem("uid");
+        const idToken = localStorage.getItem("idToken");
+
+        if (!uid || !idToken) {
+          alert("로그인이 필요합니다. uid 또는 토큰이 없습니다.");
+          return;
+        }
+
+        // ✅ 부모 회원가입 API 요청
+        const response = await fetch("https://ma-y-5usy.onrender.com/api/auth/signupSenior", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`,
+          },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          resultDiv.innerHTML = `<p style="color: green;">✅ 성공: ${JSON.stringify(data)}</p>`;
+        } else {
+          resultDiv.innerHTML = `<p style="color: red;">❌ 실패: ${data.message || "오류 발생"}</p>`;
+        }
+      } catch (error) {
+        console.error("API 요청 실패:", error);
+        resultDiv.innerHTML = `<p style="color: red;">서버 오류: ${error.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
