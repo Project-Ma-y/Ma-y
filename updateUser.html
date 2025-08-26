@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>회원 정보 수정 테스트</title>
+</head>
+<body>
+  <h1>회원 정보 수정 API 테스트 (PUT)</h1>
+
+  <form id="updateForm">
+    <label>
+      사용자 ID (필수):
+      <input type="text" id="userId" placeholder="예: abc123" required />
+    </label>
+    <br><br>
+
+    <label>
+      비밀번호:
+      <input type="password" id="password" placeholder="새 비밀번호" />
+    </label>
+    <br><br>
+
+    <label>
+      이름:
+      <input type="text" id="name" placeholder="이름" />
+    </label>
+    <br><br>
+
+    <label>
+      전화번호:
+      <input type="text" id="phone" placeholder="01012345678" />
+    </label>
+    <br><br>
+
+    <label>
+      성별:
+      <select id="gender">
+        <option value="">선택 안 함</option>
+        <option value="male">남성</option>
+        <option value="female">여성</option>
+      </select>
+    </label>
+    <br><br>
+
+    <label>
+      주소:
+      <input type="text" id="address" placeholder="서울특별시 강남구" />
+    </label>
+    <br><br>
+
+    <label>
+      생년월일:
+      <input type="date" id="birthdate" />
+    </label>
+    <br><br>
+
+    <button type="submit">회원 정보 수정 요청 보내기</button>
+  </form>
+
+  <pre id="result" style="white-space: pre-wrap; background:#f4f4f4; padding:10px; border:1px solid #ccc; max-width:600px; margin-top:20px;"></pre>
+
+  <script>
+    document.getElementById("updateForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const result = document.getElementById("result");
+      result.textContent = "요청 중...";
+
+      try {
+        // 로컬스토리지에서 idToken 가져오기
+        const idToken = localStorage.getItem("idToken");
+        if (!idToken) {
+          result.textContent = "🚨 idToken이 로컬스토리지에 없습니다.";
+          return;
+        }
+
+        // 입력값 가져오기
+        const userId = document.getElementById("userId").value.trim();
+        const password = document.getElementById("password").value.trim();
+        const name = document.getElementById("name").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+        const gender = document.getElementById("gender").value;
+        const address = document.getElementById("address").value.trim();
+        const birthdate = document.getElementById("birthdate").value;
+
+        // body 생성 (비어있는 필드는 자동 제외)
+        const payload = {};
+        if (password) payload.password = password;
+        if (name) payload.name = name;
+        if (phone) payload.phone = phone;
+        if (gender) payload.gender = gender;
+        if (address) payload.address = address;
+        if (birthdate) payload.birthdate = new Date(birthdate).toISOString();
+
+        // PUT 요청
+        const res = await fetch(`https://ma-y-5usy.onrender.com/api/user/${userId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          result.textContent = `❌ 오류 발생\nStatus: ${res.status}\nMessage: ${data.message || JSON.stringify(data)}`;
+          return;
+        }
+
+        result.textContent = `✅ 요청 성공\n\n${JSON.stringify(data, null, 2)}`;
+      } catch (err) {
+        result.textContent = `🚨 요청 실패\n${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
