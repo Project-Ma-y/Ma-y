@@ -70,13 +70,13 @@
       try {
         // 로컬스토리지에서 idToken 가져오기
         const idToken = localStorage.getItem("idToken");
+        const userId = localStorage.getItem("uid");
         if (!idToken) {
           result.textContent = "🚨 idToken이 로컬스토리지에 없습니다.";
           return;
         }
 
         // 입력값 가져오기
-        const userId = document.getElementById("userId").value.trim();
         const password = document.getElementById("password").value.trim();
         const name = document.getElementById("name").value.trim();
         const phone = document.getElementById("phone").value.trim();
