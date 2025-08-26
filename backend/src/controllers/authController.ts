@@ -131,7 +131,7 @@ export const registerParent = async (req: Request, res: Response) => {
     // registeredFamily 배열 생성
     const registeredFamily = results.map((parentCredential, idx) => ({
       uid: parentCredential.uid,
-      name: parentCredential.name,
+      name: parentCredential.displayName,
       relation: parents[idx].relation,
       linkedAt: new Date().toISOString(),
     }));
@@ -139,7 +139,7 @@ export const registerParent = async (req: Request, res: Response) => {
     // 가족 정보 업데이트
     await updateUserService({
       id: family.id,
-      registeredFamily,
+      registeredFamily
     });
 
     res.status(201).json({ message: '등록 성공' });
