@@ -9,3 +9,4 @@ export function EmptyState({ title, description, action }: Props) {
     </div>
   )
 }
+export default EmptyState;

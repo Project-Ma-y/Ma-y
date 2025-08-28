@@ -9,6 +9,15 @@ export default defineConfig({
     tailwindcss(),
     lightningcss(), 
   ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://ma-y.onrender.com',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
    resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

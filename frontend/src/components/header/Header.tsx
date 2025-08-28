@@ -1,24 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Switch from "@/components/Switch";
 
 interface HeaderProps {
   type?: "default" | "header-a" | "header-b";
-  icon1?: string;
-  icon2?: string;
-  icon1OnClick?: () => void;
-  icon2OnClick?: () => void;
   title?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
   type = "default",
-  icon1 = "center-focus-strong",
-  icon2,
-  icon1OnClick,
-  icon2OnClick,
-  title,
+  title = "",
 }) => {
-  const [pageTitle, setPageTitle] = useState(title || "Title");
+  const [pageTitle, setPageTitle] = useState(title);
+  const [isLargeFont, setIsLargeFont] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,58 +36,98 @@ const Header: React.FC<HeaderProps> = ({
     });
   }, [title]);
 
-  const handleIconClick = (icon: string, customHandler?: () => void) => {
-    if (icon === "arrow-left") {
-      return () => navigate(-1);
+  const handleToggleFont = (checked: boolean) => {
+    setIsLargeFont(checked);
+    if (checked) {
+      document.body.classList.add("text-lg");
+      document.body.classList.remove("text-base");
+    } else {
+      document.body.classList.add("text-base");
+      document.body.classList.remove("text-lg");
     }
-    return customHandler;
   };
 
   return (
     <header className="w-full max-w-[520px] min-w-[390px] mx-auto bg-white px-4 py-3 shadow-md">
       <nav className="flex items-center justify-between">
-        {/* header-b 타입: 뒤로가기 + 타이틀 */}
-        {type === "header-b" && (
-          <div className="flex items-center gap-2">
-            <div
-              onClick={() => navigate(-1)}
-              className="w-6 h-6 bg-gray-300 rounded cursor-pointer"
-            ></div>
-            <span className="text-lg font-semibold">{pageTitle}</span>
-          </div>
+        {/* 좌측 버튼 (뒤로가기) */}
+        {type === "header-a" && (
+          <button onClick={() => navigate(-1)} aria-label="뒤로가기">
+            <svg
+              className="h-6 w-6 text-gray-800"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
         )}
-
-        {/* default / header-a 타입 */}
-        {(type === "default" || type === "header-a") && (
-          <>
+        
+        {/* 좌측 로고/타이틀 */}
+        {type === "default" && (
             <div className="flex items-center">
-              {type === "default" ? (
-                <div className="w-24 h-8 bg-gray-300" />
-              ) : (
-                <span className="text-lg font-semibold">{pageTitle}</span>
-              )}
+                <span className="rounded-md bg-[var(--color-primary)]/15 px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]">
+                  m
+                </span>
             </div>
-
-            <ul className="flex gap-2 items-center">
-              {icon1 && (
-                <li>
-                  <div
-                    onClick={handleIconClick(icon1, icon1OnClick)}
-                    className="w-6 h-6 bg-gray-300 rounded cursor-pointer"
-                  />
-                </li>
-              )}
-              {icon2 && (
-                <li>
-                  <div
-                    onClick={handleIconClick(icon2, icon2OnClick)}
-                    className="w-6 h-6 bg-gray-300 rounded cursor-pointer"
-                  />
-                </li>
-              )}
-            </ul>
-          </>
         )}
+
+        {/* 페이지 타이틀 */}
+        {(type === "header-a" || type === "header-b") && (
+          <span className="text-lg font-semibold">{pageTitle}</span>
+        )}
+
+        {/* 우측 버튼 그룹 */}
+        <div className="flex items-center gap-4">
+          {/* type이 default일 때만 토글 버튼 */}
+          {type === "default" && (
+            <Switch
+              label="글씨 확대"
+              checked={isLargeFont}
+              onChange={handleToggleFont}
+            />
+          )}
+
+          {/* type이 default일 때만 알림 아이콘 */}
+          {type === "default" && (
+            <button aria-label="알림" className="relative">
+              <svg
+                className="h-5 w-5 text-gray-800"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2a6 6 0 0 0-6 6v3.586l-1.707 1.707A1 1 0 0 0 5 15h14a1 1 0 0 0 .707-1.707L18 11.586V8a6 6 0 0 0-6-6Zm0 20a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3Z" />
+              </svg>
+            </button>
+          )}
+
+          {/* type이 header-b일 때 설정 아이콘 */}
+          {type === "header-b" && (
+            <button aria-label="설정">
+              <svg
+                className="h-6 w-6 text-gray-800"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M21 15h-9" />
+                <path d="M12 10h9" />
+                <path d="M21 5h-9" />
+                <circle cx="7" cy="5" r="2" />
+                <circle cx="7" cy="20" r="2" />
+                <circle cx="7" cy="10" r="2" />
+              </svg>
+            </button>
+          )}
+        </div>
       </nav>
     </header>
   );
