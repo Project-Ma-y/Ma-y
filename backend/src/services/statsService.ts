@@ -52,7 +52,7 @@ export const getSignupConversionService = async () => {
       return {
         ...entry,
         totalSessions,
-        totalRegisteredSessions: totalSignupSessions,
+        totalSignupSessions,
       };
     });
 
@@ -111,7 +111,7 @@ export const getApplicationReachService = async () => {
       return {
         ...entry,
         totalSessions,
-        totalRegisteredSessions: totalReachApplypageSessions,
+        totalReachApplypageSessions,
       };
     });
 
@@ -170,7 +170,7 @@ export const getApplicationConversionService = async () => {
       return {
         ...entry,
         totalSessions,
-        totalRegisteredSessions: totalApplyCompleteSessions,
+        totalApplyCompleteSessions,
       };
     });
 
