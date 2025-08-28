@@ -168,6 +168,7 @@ export const updateUserPassword = async (req: Request, res: Response) => {
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;
+    const msg = error.message || "유저 정보 업데이트 실패";
 
     console.error(`[❌ 유저 in updateUser ${req.method} ${req.originalUrl}]`, {
       statusCode,
@@ -176,6 +177,6 @@ export const updateUserPassword = async (req: Request, res: Response) => {
       user: req.sessionData?.userId || "unknown"
     });
 
-    res.status(statusCode).json({ message: "유저 정보 업데이트 실패" });
+    res.status(statusCode).json({ message: msg });
   }
 }
