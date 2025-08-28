@@ -57,7 +57,7 @@ export const registerUser = async (
 };
 
 export const registerParentService = async (
-    payload: RegisterPayload) => {
+    payload: any) => {
     try {
         // 아이디 처리
         const mayIdEmail = `${payload.id}${mayEmail}`;
@@ -88,7 +88,7 @@ export const registerParentService = async (
 
         return credential;
     } catch (error) {
-        console.error('Error creating new user in registerUser:', error);
+        console.error('Error creating new user in registerParentService:', error);
         throw error;
     }
 };

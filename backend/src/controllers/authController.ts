@@ -108,7 +108,9 @@ export const adminCheck = async (req: Request, res: Response) => {
 export const registerParent = async (req: Request, res: Response) => {
   try {
     // 부모 정보 배열 처리
-    const parents = Array.isArray(req.body) ? req.body : [req.body];
+    const parents = Array.isArray(req.body.parents)
+      ? req.body.parents
+      : [req.body.parents];
 
     if (parents.length === 0) {
       const error: any = new Error("부모 정보가 없습니다.");
@@ -118,7 +120,7 @@ export const registerParent = async (req: Request, res: Response) => {
 
     // 부모 등록 (Promise.all)
     const results = await Promise.all(
-      parents.map(async (parent) => {
+      parents.map(async (parent: any) => {
         return await registerParentService(parent);
       })
     );

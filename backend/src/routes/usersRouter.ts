@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyFirebaseToken } from "../middleware/authMiddleware";
 import { loadSession, noCache } from "../middleware/sessionMiddleware";
-import { getAllUsers, getUserByUID, deleteUser, updateUserProfile, updateUserPassword, getMyProfile } from "../controllers/usersController";
+import { getAllUsers, getUserByUID, deleteUser, updateUserProfile, updateUserPassword, getMyProfile, updateUserParentProfile} from "../controllers/usersController";
 import { checkAdminUid } from "../middleware/checkAdminUid";
 
 const router = Router();
@@ -13,6 +13,9 @@ router.get("/:id", verifyFirebaseToken, loadSession, checkAdminUid, getUserByUID
 router.delete("/:id", verifyFirebaseToken, loadSession, checkAdminUid, deleteUser); //회원 삭제
 
 router.get("/", verifyFirebaseToken, loadSession, checkAdminUid, getAllUsers); //가입자 집계
+
+//router.put("/me/parentProfile", verifyFirebaseToken, loadSession, updateUserParentProfile); //부모 프로필 업데이트
+//router.delete("/:id", verifyFirebaseToken, loadSession, checkAdminUid, deleteUserParent); //부모 삭제
 
 export default router;
  
