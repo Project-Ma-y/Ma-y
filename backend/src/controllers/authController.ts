@@ -133,7 +133,7 @@ export const registerParent = async (req: Request, res: Response) => {
       throw error;
     }
 
-    // registeredFamily 배열 생성
+    // 가족용: registeredFamily 배열 생성
     const registeredFamily = results.map((parentCredential, idx) => ({
       uid: parentCredential.uid,
       name: parentCredential.displayName,
@@ -146,6 +146,26 @@ export const registerParent = async (req: Request, res: Response) => {
       id: family.id,
       registeredFamily
     });
+
+
+    // 시니어용 링크 정보
+    const registeredFamilyForSenior = {
+      uid: req.user?.uid ?? "",          // undefined 방지
+      name: req.user?.displayName ?? "", // undefined 방지
+      relation: "가족",
+      linkedAt: new Date().toISOString() ?? "",
+    };
+
+    // 부모 문서들에 추가 (비동기 병렬 + async 콜백)
+    await Promise.all(
+      results.map(async (r) => {
+        await updateUserService({
+          id: r.uid,
+          // 스키마가 registeredFamily 라는 배열이라면:
+          registeredFamily: [registeredFamilyForSenior],
+        });
+      })
+    );
 
     res.status(201).json({ message: '등록 성공' });
 
