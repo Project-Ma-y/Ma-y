@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>부모 등록 테스트</title>
+</head>
+<body>
+  <h2>부모 등록 테스트</h2>
+
+  <!-- 부모 정보 입력 폼 -->
+  <form id="parentForm">
+    <div id="parentFields">
+      <div class="parent">
+        <h3>부모 1</h3>
+        <label>아이디: <input type="text" name="id" required /></label><br />
+        <label>이름: <input type="text" name="name" required /></label><br />
+        <label>전화번호: <input type="text" name="phone" required /></label><br />
+        <label>성별: 
+          <select name="gender" required>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+          </select>
+        </label><br />
+        <label>생년월일: <input type="date" name="birthdate" required /></label><br />
+        <label>관계:
+          <select name="relation" required>
+            <option value="father">아버지</option>
+            <option value="mother">어머니</option>
+            <option value="daughter">딸</option>
+            <option value="son">아들</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <br />
+    <button type="button" id="addParentBtn">+ 부모 추가</button>
+    <br /><br />
+    <button type="submit">부모 등록</button>
+  </form>
+
+  <p id="result"></p>
+
+  <script>
+    const parentFields = document.getElementById("parentFields");
+    const addParentBtn = document.getElementById("addParentBtn");
+    let parentCount = 1;
+
+    // 부모 입력 필드 추가
+    addParentBtn.addEventListener("click", () => {
+      parentCount++;
+      const parentDiv = document.createElement("div");
+      parentDiv.classList.add("parent");
+      parentDiv.innerHTML = `
+        <h3>부모 ${parentCount}</h3>
+        <label>아이디: <input type="text" name="id" required /></label><br />
+        <label>이름: <input type="text" name="name" required /></label><br />
+        <label>전화번호: <input type="text" name="phone" required /></label><br />
+        <label>성별: 
+          <select name="gender" required>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+          </select>
+        </label><br />
+        <label>생년월일: <input type="date" name="birthdate" required /></label><br />
+        <label>관계:
+          <select name="relation" required>
+            <option value="father">아버지</option>
+            <option value="mother">어머니</option>
+            <option value="daughter">딸</option>
+            <option value="son">아들</option>
+          </select>
+        </label>
+      `;
+      parentFields.appendChild(parentDiv);
+    });
+
+    // 폼 제출 이벤트
+    document.getElementById("parentForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      // 모든 부모 정보를 배열로 수집
+      const parents = [];
+      document.querySelectorAll(".parent").forEach((parentDiv) => {
+        const parentData = {
+          id: parentDiv.querySelector('input[name="id"]').value,
+          name: parentDiv.querySelector('input[name="name"]').value,
+          phone: parentDiv.querySelector('input[name="phone"]').value,
+          gender: parentDiv.querySelector('select[name="gender"]').value,
+          birthdate: parentDiv.querySelector('input[name="birthdate"]').value,
+          relation: parentDiv.querySelector('select[name="relation"]').value,
+        };
+        parents.push(parentData);
+      });
+
+      try {
+        const token = localStorage.getItem("idToken"); // Firebase 토큰
+        const uid = localStorage.getItem("uid");
+
+        const response = await fetch("https://ma-y-5usy.onrender.com/api/auth/signupSenior", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(parents),
+        });
+
+        const result = await response.json();
+        document.getElementById("result").textContent = JSON.stringify(result);
+      } catch (error) {
+        document.getElementById("result").textContent = "❌ 에러 발생: " + error;
+      }
+    });
+  </script>
+</body>
+</html>

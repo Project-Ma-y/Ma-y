@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>/me API 테스트</title>
+</head>
+<body>
+  <h1>/me API 테스트</h1>
+
+  <button id="sendRequestBtn">내 정보 가져오기</button>
+
+  <pre id="result" style="white-space: pre-wrap; background:#f4f4f4; padding:10px; border:1px solid #ccc; max-width:600px;"></pre>
+
+  <script>
+    const button = document.getElementById("sendRequestBtn");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+      result.textContent = "요청 중...";
+
+      try {
+   // 로컬스토리지에서 uid, idToken 가져오기
+        const uid = localStorage.getItem("uid");
+        const idToken = localStorage.getItem("idToken");
+
+        if (!uid || !idToken) {
+          result.textContent = "🚨 uid 또는 idToken이 로컬스토리지에 없습니다.";
+          return;
+        }
+
+        // 서버로 요청
+        const res = await fetch("https://ma-y-5usy.onrender.com/api/users/me", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`, // ✅ Bearer 토큰 추가
+          },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          result.textContent = `❌ 오류 발생\nStatus: ${res.status}\nMessage: ${data.message || JSON.stringify(data)}`;
+          return;
+        }
+
+        result.textContent = `✅ 요청 성공\n\n${JSON.stringify(data, null, 2)}`;
+      } catch (err) {
+        result.textContent = `🚨 요청 실패\n${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

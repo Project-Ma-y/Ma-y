@@ -4,6 +4,7 @@ import { auth, db } from '../utils/firebase'
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import { RegisterPayload } from "../interfaces/auth";
 
+export const mayEmail = '@may.com'
 // 회원가입: 회원정보 db 등록
 // 작성자 김다영
 // 2025.07.02
@@ -21,9 +22,12 @@ export const registerUser = async (
         //     throw error;
         // }
 
+        // 아이디 처리
+        const mayIdEmail = `${payload.id}${mayEmail}`;
+
         // 파이어베이스 회원가입
         const credential = await auth.createUser({
-            email: payload.email,
+            email: mayIdEmail,
             password: payload.password,
             displayName: payload.name
         })
@@ -31,8 +35,9 @@ export const registerUser = async (
         //유저 정보 users에 저장
         await db.collection("users").doc(credential.uid).set({
             isDeleted: false,
+            hasSignup: true,
             customerType: payload.customerType,            
-            email: payload.email,
+            id: payload.id,
             password: payload.password,
             name: payload.name,
             phone: payload.phone,
@@ -43,6 +48,43 @@ export const registerUser = async (
             createdAt: Date.now(),
             updatedAt: Date.now()
         });
+
+        return credential;
+    } catch (error) {
+        console.error('Error creating new user in registerUser:', error);
+        throw error;
+    }
+};
+
+export const registerParentService = async (
+    payload: RegisterPayload) => {
+    try {
+        // 아이디 처리
+        const mayIdEmail = `${payload.id}${mayEmail}`;
+
+        // 파이어베이스 회원가입
+        const credential = await auth.createUser({
+            email: mayIdEmail,
+            password: payload.password,
+            displayName: payload.name
+        })
+
+         // ✅ 부모용 기본 필드 강제 설정
+    const userDoc = {
+      id: payload.id,
+      name: payload.name,
+      phone: payload.phone,
+      gender: payload.gender,
+      birthdate: payload.birthdate,
+      isDeleted: false,
+      hasSignup: false,
+      customerType: "senior",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+        //유저 정보 users에 저장
+        await db.collection("users").doc(credential.uid).set(userDoc);
 
         return credential;
     } catch (error) {

@@ -1,92 +1,78 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>회원가입 테스트</title>
 </head>
 <body>
-  <h2>회원가입 폼 (전체 데이터)</h2>
+  <h1>회원가입 테스트</h1>
 
-  <form id="signupForm">
-    <label>이메일: <input type="email" id="email" required /></label><br><br>
-    <label>비밀번호: <input type="password" id="password" required /></label><br><br>
-    <label>비밀번호 확인: <input type="password" id="pwVerify" required /></label><br><br>
-    <label>이름: <input type="text" id="name" required /></label><br><br>
-    <label>전화번호: <input type="text" id="phoneNumber" required /></label><br><br>
-    <label>주소: <input type="text" id="address" required /></label><br><br>
-    <label>생년월일: <input type="date" id="birthdate" required /></label><br><br>
-    <label>역할: 
-      <select id="role">
-        <option value="guardian">보호자</option>
-        <option value="companion">동행인</option>
+  <form id="registerForm">
+    <label>아이디: <input type="text" name="id" required /></label><br /><br />
+    <label>비밀번호: <input type="password" name="password" required /></label><br /><br />
+    <label>비밀번호 확인: <input type="password" name="pwVerify" required /></label><br /><br />
+    <label>이름: <input type="text" name="name" required /></label><br /><br />
+    <label>전화번호: <input type="text" name="phone" required /></label><br /><br />
+    <label>성별: 
+      <select name="gender" required>
+        <option value="male">남성</option>
+        <option value="female">여성</option>
       </select>
-    </label><br><br>
-    <label>약관 버전: <input type="text" id="agreementVersion" value="1.0" /></label><br><br>
-    <label>약관 동의일: <input type="date" id="agreementDate" value="2025-07-02" /></label><br><br>
-
-    <h3>등록된 부모님 1</h3>
-    <label>닉네임: <input type="text" id="p1nickname" value="이모" /></label><br>
-    <label>전화번호: <input type="text" id="p1phone" value="010-2222-3333" /></label><br>
-    <label>주소: <input type="text" id="p1address" value="서울특별시 마포구 월드컵북로 456" /></label><br>
-    <label>생년월일: <input type="date" id="p1birth" value="1965-10-10" /></label><br><br>
-
-    <h3>등록된 부모님 2</h3>
-    <label>닉네임: <input type="text" id="p2nickname" value="삼촌" /></label><br>
-    <label>전화번호: <input type="text" id="p2phone" value="010-4444-5555" /></label><br>
-    <label>주소: <input type="text" id="p2address" value="서울특별시 용산구 이태원로 789" /></label><br>
-    <label>생년월일: <input type="date" id="p2birth" value="1960-03-20" /></label><br><br>
-
-    <button type="submit">회원가입 요청</button>
+    </label><br /><br />
+    <label>주소: <input type="text" name="address" /></label><br /><br />
+    <label>생년월일: <input type="date" name="birthdate" required /></label><br /><br />
+    <label>고객유형:
+      <select name="customerType" required>
+        <option value="family">가족</option>
+        <option value="senior">시니어</option>
+      </select>
+    </label><br /><br />
+    <button type="submit">회원가입</button>
   </form>
 
-  <h3>응답 결과는</h3>
-  <pre id="output"></pre>
+  <div id="result"></div>
 
   <script>
-    document.getElementById("signupForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    const form = document.getElementById("registerForm");
+    const resultDiv = document.getElementById("result");
 
-      const body = {
-        role: document.getElementById("role").value,
-        agreements: {
-          version: document.getElementById("agreementVersion").value,
-          date: document.getElementById("agreementDate").value
-        },
-        email: document.getElementById("email").value.trim(),
-        password: document.getElementById("password").value,
-        pwVerify: document.getElementById("pwVerify").value,
-        name: document.getElementById("name").value,
-        phoneNumber: document.getElementById("phoneNumber").value,
-        address: document.getElementById("address").value,
-        birthdate: document.getElementById("birthdate").value,
-        registeredParents: [
-          {
-            nickname: document.getElementById("p1nickname").value,
-            phoneNumber: document.getElementById("p1phone").value,
-            address: document.getElementById("p1address").value,
-            birthdate: document.getElementById("p1birth").value,
-          },
-          {
-            nickname: document.getElementById("p2nickname").value,
-            phoneNumber: document.getElementById("p2phone").value,
-            address: document.getElementById("p2address").value,
-            birthdate: document.getElementById("p2birth").value,
-          }
-        ]
-      };
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      // 폼 데이터 수집
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
 
       try {
-        const res = await fetch("https://ma-y-5usy.onrender.com/api/auth/signupEmail", {
+        // ✅ 로컬스토리지에서 Firebase 토큰 가져오기
+        const idToken = localStorage.getItem("idToken");
+        if (!idToken) {
+          alert("로그인이 필요합니다. 토큰이 없습니다.");
+          return;
+        }
+
+        // ✅ 회원가입 API 요청
+        const response = await fetch("https://ma-y-5usy.onrender.com/api/auth/signupEmail", {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`, // Firebase 인증 토큰
+          },
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(payload),
         });
 
-        const data = await res.json();
-        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById("output").textContent = `❌ ${err.message}`;
+        const data = await response.json();
+
+        if (response.ok) {
+          resultDiv.innerHTML = `<p style="color: green;">✅ 성공: ${JSON.stringify(data)}</p>`;
+        } else {
+          resultDiv.innerHTML = `<p style="color: red;">❌ 실패: ${data.message || "오류 발생"}</p>`;
+        }
+      } catch (error) {
+        console.error("API 요청 실패:", error);
+        resultDiv.innerHTML = `<p style="color: red;">서버 오류: ${error.message}</p>`;
       }
     });
   </script>
