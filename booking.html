@@ -1,99 +1,229 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>예약 테스트</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>예약 생성 테스트 (createBooking)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+    body { margin: 0; padding: 24px; background: #f7f7f9; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .row label { font-weight: 600; }
+    .row input[type="text"],
+    .row input[type="datetime-local"],
+    .row input[type="url"],
+    .row textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; }
+    legend { padding: 0 6px; font-weight: 600; }
+    .actions { display: flex; gap: 8px; }
+    button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #fff; color: #111827; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .ok { color: #065f46; }
+    .warn { color: #92400e; }
+    .err { color: #991b1b; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .inline { display:inline-flex; align-items:center; gap:8px; }
+    .help { font-size: 12px; color: #374151; margin-top: -6px; }
+  </style>
 </head>
 <body>
-  <h2>Firebase 로그인</h2>
-  <form id="loginForm">
-    <label>이메일: <input type="email" id="email" required /></label><br><br>
-    <label>비밀번호: <input type="password" id="password" required /></label><br><br>
-    <button type="submit">로그인</button>
-  </form>
+  <h1>예약 생성 테스트 <span class="muted">POST /booking</span></h1>
 
-  <h2>예약 생성</h2>
-  <form id="bookingForm">
-    <label>날짜: <input type="date" id="date" required /></label><br><br>
-    <label>장소: <input type="text" id="place" required /></label><br><br>
-    <label>가격(원): <input type="number" id="price" required /></label><br><br>
-    <button type="submit">예약하기</button>
-  </form>
+  <div class="card">
+    <div class="row">
+      <label for="endpoint">API Endpoint</label>
+      <input id="endpoint" type="url" placeholder="https://your-api.example.com/api/booking" />
+    </div>
+    <div class="help">※ 라우터가 <code>router.post("/", ...)</code>라면 상위 경로가 <code>/api/booking</code> 또는 <code>/api/bookings</code>일 가능성이 큽니다. 실제 경로로 수정해 주세요.</div>
+  </div>
 
-  <h3>응답 결과</h3>
-  <pre id="output"></pre>
+  <div class="card">
+    <div class="row">
+      <label for="token">idToken (로컬스토리지)</label>
+      <input id="token" type="text" placeholder="localStorage.idToken 에서 자동 로드" />
+    </div>
+    <div class="actions">
+      <button id="reloadToken" class="secondary">토큰 다시 불러오기</button>
+      <button id="saveToken" class="secondary">이 값을 localStorage.idToken 으로 저장</button>
+    </div>
+    <div id="tokenStatus" class="help"></div>
+  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  <div class="card">
+    <div class="row">
+      <label for="start">시작 시간</label>
+      <input id="start" type="datetime-local" />
+    </div>
+    <div class="row">
+      <label for="end">종료 시간</label>
+      <input id="end" type="datetime-local" />
+    </div>
+    <div class="row">
+      <label for="dep">출발지</label>
+      <input id="dep" type="text" placeholder="서울시 ○○구 ○○로 123" />
+    </div>
+    <div class="row">
+      <label for="dest">도착지</label>
+      <input id="dest" type="text" placeholder="서울시 ○○구 ○○로 456" />
+    </div>
+    <div class="row">
+      <label>왕복 여부</label>
+      <span class="inline"><input id="round" type="checkbox" /> <span>왕복</span></span>
+    </div>
+    <div class="row" style="align-items:start;">
+      <label>보조 유형</label>
+      <fieldset style="width:100%">
+        <legend>assistanceType</legend>
+        <div><label class="inline"><input type="radio" name="assist" value="길안내및 이동보조" checked /> 길안내및 이동보조</label></div>
+        <div><label class="inline"><input type="radio" name="assist" value="접수및행정보조" /> 접수및행정보조</label></div>
+        <div><label class="inline"><input type="radio" name="assist" value="장보기 보조" /> 장보기 보조</label></div>
+        <div><label class="inline"><input type="radio" name="assist" value="기타" /> 기타</label></div>
+      </fieldset>
+    </div>
+    <div class="row" style="align-items:start;">
+      <label for="req">추가 요청사항</label>
+      <textarea id="req" rows="3" placeholder="휠체어 승하차 도움 필요 등"></textarea>
+    </div>
 
-    const firebaseConfig = {
-          apiKey: "AIzaSyALislKfX7MQeh1IteqWiiaxYGJ_KrNZN4",
-            authDomain: "ma-y-b1fa6.firebaseapp.com",
-            databaseURL: "https://ma-y-b1fa6-default-rtdb.firebaseio.com",
-            projectId: "ma-y-b1fa6",
-            storageBucket: "ma-y-b1fa6.firebasestorage.app",
-            messagingSenderId: "48645617538",
-            appId: "1:48645617538:web:23d556cdd2c5b223b2019b",
-            measurementId: "G-8CPE7B7PLN",
+    <div class="actions">
+      <button id="send">예약 생성 요청 보내기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="help"></div></div>
+    <pre id="outReq"><code></code></pre>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>응답</label><div id="status" class="help"></div></div>
+    <pre id="out"><code></code></pre>
+  </div>
+
+  <script>
+    // Utilities
+    const $ = (sel) => document.querySelector(sel);
+    const formatDateLocal = (d) => {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    // Prefill times: now and +1h
+    (function initTimes(){
+      const now = new Date();
+      const plus1 = new Date(now.getTime() + 60 * 60 * 1000);
+      $('#start').value = formatDateLocal(now);
+      $('#end').value = formatDateLocal(plus1);
+    })();
 
-    let idToken = ""; // 로그인 후 저장
-
-    const loginForm = document.getElementById("loginForm");
-    const bookingForm = document.getElementById("bookingForm");
-    const output = document.getElementById("output");
-
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        idToken = await userCredential.user.getIdToken();
-        output.textContent = "✅ 로그인 성공. 토큰 확보 완료";
-      } catch (error) {
-        output.textContent = `❌ 로그인 실패: ${error.message}`;
-      }
+    // Token handling
+    function loadTokenFromLocalStorage(){
+      const t = localStorage.getItem('idToken') || '';
+      $('#token').value = t;
+      $('#tokenStatus').innerHTML = t
+        ? `<span class="ok">localStorage.idToken 로드됨 (${t.slice(0,12)}…)</span>`
+        : `<span class="warn">localStorage.idToken 이 비어 있습니다. Firebase 로그인 후 다시 시도하거나, 위 입력란에 직접 붙여넣고 저장하세요.</span>`;
+    }
+    loadTokenFromLocalStorage();
+    $('#reloadToken').addEventListener('click', loadTokenFromLocalStorage);
+    $('#saveToken').addEventListener('click', () => {
+      const v = $('#token').value.trim();
+      localStorage.setItem('idToken', v);
+      loadTokenFromLocalStorage();
     });
 
-    bookingForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    function getAssistanceType(){
+      const checked = document.querySelector('input[name="assist"]:checked');
+      return checked ? checked.value : '';
+    }
 
-          const idToken = localStorage.getItem("idToken"); // ✅ 저장된 토큰 가져오기
-          
-      if (!idToken) {
-        output.textContent = "❌ 먼저 로그인하세요";
+    function buildPayload(){
+      const start = $('#start').value; // "YYYY-MM-DDTHH:mm"
+      const end = $('#end').value;
+      return {
+        startBookingTime: start ? new Date(start).toISOString() : null,
+        endBookingTime: end ? new Date(end).toISOString() : null,
+        departureAddress: $('#dep').value.trim(),
+        destinationAddress: $('#dest').value.trim(),
+        roundTrip: $('#round').checked,
+        assistanceType: getAssistanceType(),
+        additionalRequests: $('#req').value.trim()
+      };
+    }
+
+    function previewRequest(url, headers, body){
+      const redactedAuth = headers.Authorization ? headers.Authorization.replace(/Bearer\s+([A-Za-z0-9-_]+)\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/, 'Bearer $1.***.***') : '';
+      const h = {...headers, Authorization: redactedAuth };
+      $('#reqPreview').textContent = `${url}`;
+      $('#outReq').textContent = JSON.stringify({ method: 'POST', url, headers: h, body }, null, 2);
+    }
+
+    async function send(){
+      const url = $('#endpoint').value.trim();
+      const idToken = $('#token').value.trim();
+      if (!url){
+        alert('API Endpoint 를 입력해 주세요.');
         return;
       }
+      if (!idToken){
+        if (!confirm('idToken 이 비어 있습니다. 토큰 없이 시도할까요?')) return;
+      }
 
-      const body = {
-        date: document.getElementById("date").value,
-        place: document.getElementById("place").value,
-        price: parseInt(document.getElementById("price").value),
-      };
+      const headers = { 'Content-Type': 'application/json' };
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`; // verifyFirebaseToken 이 일반적으로 기대하는 형태
+      const body = buildPayload();
+      previewRequest(url, headers, body);
+
+      $('#status').textContent = '요청 중…';
+      $('#out').textContent = '';
 
       try {
-        const res = await fetch("https://ma-y-5usy.onrender.com/api/booking", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          credentials: "include", // 세션 쿠키 포함
-          body: JSON.stringify(body),
+        const resp = await fetch(url, {
+          method: 'POST',
+          mode: 'cors',
+          credentials: 'include', // 세션/쿠키 갱신 반영
+          headers,
+          body: JSON.stringify(body)
         });
 
-        const data = await res.json();
-        output.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        output.textContent = `❌ 예약 실패: ${err.message}`;
+        const text = await resp.text();
+        let parsed; try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
+        $('#status').innerHTML = `HTTP <strong>${resp.status}</strong> ${resp.ok ? '<span class="ok">OK</span>' : '<span class="err">ERROR</span>'}`;
+
+        const usefulHeaders = {};
+        resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
+
+        $('#out').textContent = JSON.stringify({
+          status: resp.status,
+          ok: resp.ok,
+          headers: usefulHeaders,
+          data: parsed
+        }, null, 2);
+      } catch (e){
+        $('#status').innerHTML = '<span class="err">네트워크 에러</span>';
+        $('#out').textContent = String(e);
       }
-    });
+    }
+
+    // Defaults and quick fills
+    (function guessDefaultEndpoint(){
+      const loc = window.location.origin;
+      const guesses = [
+        `${loc.replace('github.io','onrender.com')}/api/booking`,
+        `${loc}/api/booking`,
+        'https://ma-y-5usy.onrender.com/api/booking',
+        'http://localhost:3000/api/booking',
+        'http://127.0.0.1:3000/api/booking'
+      ];
+      // Choose the first that looks like a real URL (all are); set a common default
+      $('#endpoint').value = guesses[2];
+    })();
+
+    $('#send').addEventListener('click', send);
   </script>
 </body>
 </html>
