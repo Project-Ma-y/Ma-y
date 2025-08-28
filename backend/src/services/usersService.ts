@@ -179,7 +179,7 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
 
       if (!isPasswordCorrect) {
         const err = new Error("현재 비밀번호가 일치하지 않습니다.");
-        (err as any).code = 401;
+        (err as any).code = 402;
         throw err;
       }
 

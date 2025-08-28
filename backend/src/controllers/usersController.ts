@@ -141,7 +141,7 @@ export const updateUserPassword = async (req: Request, res: Response) => {
     const uid = req.user?.uid;
     if (!uid) {
       const error: any = new Error("로그인이 필요합니다.");
-      error.code = 401;
+      error.code = 400;
       throw error;
     }
 
@@ -158,8 +158,8 @@ export const updateUserPassword = async (req: Request, res: Response) => {
       await compareUserPassword(uid, payload, req.body.currentPassword);
     }
     else{
-      const error: any = new Error("바꿀 비밀번호를 입력해주세요.");
-      error.code = 400;
+      const error: any = new Error("비밀번호 변경 시 현재 비밀번호를 입력해야 합니다.");
+      error.code = 401;
       throw error;
     }
 
