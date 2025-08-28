@@ -200,7 +200,7 @@
     // ===== 이벤트 바인딩 =====
     $("#loadTokenBtn").addEventListener("click", () => {
       const key = $("#tokenKey").value.trim() || "idToken";
-      const token = sessionStorage.getItem(key);
+      const token = localStorage.getItem(key);
       if (!token) {
         appendLog(`세션스토리지에서 키 "${key}"로 토큰을 찾지 못했습니다.`, "토큰 로드");
       } else {
