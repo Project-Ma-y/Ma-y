@@ -184,6 +184,7 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
       }
 
     }
+    return true;
 
   } catch (error) {
     console.error('Error updating user in compareUserPassword:', error);

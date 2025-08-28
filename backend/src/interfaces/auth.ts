@@ -1,5 +1,6 @@
 export interface RegisterPayload {
   isDeleted: boolean;
+  hasSignup: boolean;
   customerType: 'family' | 'senior'; //가족/시니어
   agreements?: {
     version?: string;

@@ -24,7 +24,10 @@ export const registerHandler = async (req: Request, res: Response) => {
 
     //기존 DB에 존재하는 지 확인
     if (exists) {
-      user = await updateUserService(req.body);
+      user = await updateUserService({
+        ...req.body,
+        hasSignup: true,
+      });
     }
     else {
       //DB에 등록
@@ -102,7 +105,7 @@ export const adminCheck = async (req: Request, res: Response) => {
 }
 
 //부모 등록
-export const  registerParent = async (req: Request, res: Response) => {
+export const registerParent = async (req: Request, res: Response) => {
   try {
     // 부모 정보 배열 처리
     const parents = Array.isArray(req.body) ? req.body : [req.body];

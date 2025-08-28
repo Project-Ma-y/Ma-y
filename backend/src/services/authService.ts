@@ -35,6 +35,7 @@ export const registerUser = async (
         //유저 정보 users에 저장
         await db.collection("users").doc(credential.uid).set({
             isDeleted: false,
+            hasSignup: true,
             customerType: payload.customerType,            
             id: payload.id,
             password: payload.password,
@@ -76,6 +77,7 @@ export const registerParentService = async (
       gender: payload.gender,
       birthdate: payload.birthdate,
       isDeleted: false,
+      hasSignup: false,
       customerType: "senior",
       createdAt: Date.now(),
       updatedAt: Date.now(),
