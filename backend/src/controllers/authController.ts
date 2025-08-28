@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-import { registerParentService, registerParentService, registerUser } from '../services/authService'
+import { registerParentService, registerUser } from '../services/authService'
 import { getUserByIdService, updateUserService, getUserByUIDService } from "../services/usersService";
-import { getUserByIdService, updateUserService } from "../services/usersService";
 import { validateRegisterPayload } from "../validators/registerValidator";
 import { updateSignUpCompletion } from "./sessionsController";
 
