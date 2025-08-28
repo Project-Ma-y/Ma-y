@@ -1,120 +1,244 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>회원 정보 수정 테스트</title>
+  <meta charset="utf-8" />
+  <title>API 테스트 - 프로필/비밀번호 업데이트</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, 'Noto Sans KR', sans-serif; margin: 24px; }
+    h1 { margin-bottom: 8px; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    legend { padding: 0 6px; color: #444; }
+    label { display: block; margin: 6px 0 4px; font-size: 14px; color: #333; }
+    input[type="text"], input[type="tel"], input[type="date"], input[type="password"] {
+      padding: 8px; border: 1px solid #ccc; border-radius: 6px; width: 100%; max-width: 420px;
+    }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btn { padding: 10px 14px; border: 0; border-radius: 8px; background: #111; color: #fff; cursor: pointer; }
+    .btn.secondary { background: #444; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .hint { color: #666; font-size: 12px; }
+    .out { white-space: pre-wrap; background: #0b1021; color: #e7f0ff; padding: 12px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#eef; color:#224; }
+  </style>
 </head>
 <body>
-  <h1>회원 정보 수정 API 테스트 (PUT)</h1>
+  <h1>API 테스트 <span class="pill">/me/profile & /me/password</span></h1>
+  <p class="hint">세션스토리지에서 <b>idToken</b>을 불러와 <code>Authorization: Bearer &lt;idToken&gt;</code>로 전송합니다. 쿠키도 함께 전송(<code>credentials: "include"</code>)합니다.</p>
 
-  <form id="updateForm">
-    <label>
-      사용자 ID (필수):
-      <input type="text" id="userId" placeholder="예: abc123" required />
-    </label>
-    <br><br>
+  <fieldset>
+    <legend>환경 설정</legend>
+    <label>API BASE URL (예: https://ma-y-5usy.onrender.com/api)</label>
+    <input id="apiBase" type="text" placeholder="https://ma-y-5usy.onrender.com/api/users" />
 
-    <label>
-      비밀번호:
-      <input type="password" id="password" placeholder="새 비밀번호" />
-    </label>
-    <br><br>
+    <div class="row" style="margin-top:8px;">
+      <div>
+        <label>세션스토리지 키 (기본: idToken)</label>
+        <input id="tokenKey" type="text" value="idToken" />
+      </div>
+      <button class="btn secondary" id="loadTokenBtn" type="button">세션스토리지에서 토큰 불러오기</button>
+    </div>
 
-    <label>
-      이름:
-      <input type="text" id="name" placeholder="이름" />
-    </label>
-    <br><br>
+    <label style="margin-top:8px;">ID Token (없으면 위 버튼으로 불러오거나 직접 붙여넣기)</label>
+    <input id="idToken" type="text" placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." />
+  </fieldset>
 
-    <label>
-      전화번호:
-      <input type="text" id="phone" placeholder="01012345678" />
-    </label>
-    <br><br>
+  <div class="grid">
+    <fieldset>
+      <legend>프로필 업데이트 (PUT /me/profile)</legend>
 
-    <label>
-      성별:
-      <select id="gender">
-        <option value="">선택 안 함</option>
-        <option value="male">남성</option>
-        <option value="female">여성</option>
-      </select>
-    </label>
-    <br><br>
+      <label>이름 (name)</label>
+      <input id="name" type="text" placeholder="홍길동" />
 
-    <label>
-      주소:
-      <input type="text" id="address" placeholder="서울특별시 강남구" />
-    </label>
-    <br><br>
+      <label>전화번호 (phone)</label>
+      <input id="phone" type="tel" placeholder="010-1234-5678" />
 
-    <label>
-      생년월일:
-      <input type="date" id="birthdate" />
-    </label>
-    <br><br>
+      <label>성별 (gender)</label>
+      <div class="row">
+        <label><input type="radio" name="gender" value="male" /> 남성</label>
+        <label><input type="radio" name="gender" value="female" /> 여성</label>
+        <label><input type="radio" name="gender" value="other" /> 기타</label>
+      </div>
 
-    <button type="submit">회원 정보 수정 요청 보내기</button>
-  </form>
+      <label>생년월일 (birthdate)</label>
+      <input id="birthdate" type="date" />
 
-  <pre id="result" style="white-space: pre-wrap; background:#f4f4f4; padding:10px; border:1px solid #ccc; max-width:600px; margin-top:20px;"></pre>
+      <label>주소 (address)</label>
+      <input id="address" type="text" placeholder="서울특별시 ..." />
+
+      <label>등록된 가족 여부 (registeredFamily)</label>
+      <div class="row">
+        <label><input type="radio" name="registeredFamily" value="true" /> true</label>
+        <label><input type="radio" name="registeredFamily" value="false" /> false</label>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="sendProfileBtn" type="button">프로필 업데이트 요청</button>
+        <button class="btn secondary" id="previewProfileBtn" type="button">보낼 JSON 미리보기</button>
+      </div>
+      <p class="hint">보내는 바디에는 빈 값/미선택 필드가 자동 제외됩니다. (허용 필드만 전송)</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>비밀번호 업데이트 (PUT /me/password)</legend>
+
+      <label>현재 비밀번호 (currentPassword)</label>
+      <input id="currentPassword" type="password" placeholder="현재 비밀번호" />
+
+      <label>새 비밀번호 (password)</label>
+      <input id="newPassword" type="password" placeholder="새 비밀번호" />
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="sendPasswordBtn" type="button">비밀번호 업데이트 요청</button>
+        <button class="btn secondary" id="previewPasswordBtn" type="button">보낼 JSON 미리보기</button>
+      </div>
+      <p class="hint">서버에서 현재 비밀번호 검증 후 업데이트됩니다.</p>
+    </fieldset>
+  </div>
+
+  <fieldset>
+    <legend>요청/응답 로그</legend>
+    <div id="log" class="out" style="min-height:120px;"></div>
+  </fieldset>
 
   <script>
-    document.getElementById("updateForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
+    // ===== 설정 =====
+    const $ = (sel) => document.querySelector(sel);
+    const logEl = $("#log");
 
-      const result = document.getElementById("result");
-      result.textContent = "요청 중...";
+    const UPDATE_ALLOWED_FIELDS = [
+      "name", "phone", "gender", "birthdate", "address", "registeredFamily"
+    ];
+    const PASSWORD_ALLOWED_FIELDS = ["password", "currentPassword"]; // currentPassword는 검증용으로 같이 전송
 
+    const readProfilePayload = () => {
+      const payload = {};
+      const name = $("#name").value.trim();
+      const phone = $("#phone").value.trim();
+      const birthdate = $("#birthdate").value; // yyyy-mm-dd
+      const address = $("#address").value.trim();
+
+      const genderNode = document.querySelector('input[name="gender"]:checked');
+      const regFamNode = document.querySelector('input[name="registeredFamily"]:checked');
+
+      if (name) payload.name = name;
+      if (phone) payload.phone = phone;
+      if (birthdate) payload.birthdate = birthdate; // 서버가 yyyy-mm-dd 기대하면 그대로
+      if (address) payload.address = address;
+      if (genderNode) payload.gender = genderNode.value;
+      if (regFamNode) payload.registeredFamily = regFamNode.value === "true";
+
+      // 허용 필드만 남기기
+      for (const key of Object.keys(payload)) {
+        if (!UPDATE_ALLOWED_FIELDS.includes(key)) delete payload[key];
+      }
+      return payload;
+    };
+
+    const readPasswordPayload = () => {
+      const currentPassword = $("#currentPassword").value;
+      const password = $("#newPassword").value;
+      const payload = {};
+      if (currentPassword) payload.currentPassword = currentPassword;
+      if (password) payload.password = password;
+
+      // 허용 필드만 남기기
+      for (const key of Object.keys(payload)) {
+        if (!PASSWORD_ALLOWED_FIELDS.includes(key)) delete payload[key];
+      }
+      return payload;
+    };
+
+    const appendLog = (obj, title = "") => {
+      const time = new Date().toLocaleString();
+      const head = title ? `\n=== ${title} @ ${time} ===\n` : `\n=== @ ${time} ===\n`;
+      logEl.textContent += head + (typeof obj === "string" ? obj : JSON.stringify(obj, null, 2)) + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    const getApiBase = () => $("#apiBase").value.trim().replace(/\/+$/, "");
+    const getIdToken = () => $("#idToken").value.trim();
+
+    const send = async (path, bodyObj) => {
+      const apiBase = getApiBase();
+      const idToken = getIdToken();
+      if (!apiBase) {
+        appendLog("API BASE URL을 입력하세요.", "오류");
+        return;
+      }
+      if (!idToken) {
+        appendLog("ID Token이 없습니다. 세션스토리지에서 불러오거나 직접 입력하세요.", "오류");
+        return;
+      }
+      const url = `${apiBase}${path}`;
+      const req = {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        credentials: "include", // 쿠키 동봉 → loadSession 용
+        body: JSON.stringify(bodyObj)
+      };
+
+      appendLog({ url, ...req, body: bodyObj }, "요청");
       try {
-        // 로컬스토리지에서 idToken 가져오기
-        const idToken = localStorage.getItem("idToken");
-        const userId = localStorage.getItem("uid");
-        if (!idToken) {
-          result.textContent = "🚨 idToken이 로컬스토리지에 없습니다.";
-          return;
-        }
+        const res = await fetch(url, req);
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = text; }
+        appendLog({ status: res.status, ok: res.ok, data }, "응답");
+      } catch (e) {
+        appendLog(String(e), "네트워크 오류");
+      }
+    };
 
-        // 입력값 가져오기
-        const password = document.getElementById("password").value.trim();
-        const name = document.getElementById("name").value.trim();
-        const phone = document.getElementById("phone").value.trim();
-        const gender = document.getElementById("gender").value;
-        const address = document.getElementById("address").value.trim();
-        const birthdate = document.getElementById("birthdate").value;
-
-        // body 생성 (비어있는 필드는 자동 제외)
-        const payload = {};
-        if (password) payload.password = password;
-        if (name) payload.name = name;
-        if (phone) payload.phone = phone;
-        if (gender) payload.gender = gender;
-        if (address) payload.address = address;
-        if (birthdate) payload.birthdate = new Date(birthdate).toISOString();
-
-        // PUT 요청
-        const res = await fetch(`https://ma-y-5usy.onrender.com/api/users/${userId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken}`
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          result.textContent = `❌ 오류 발생\nStatus: ${res.status}\nMessage: ${data.message || JSON.stringify(data)}`;
-          return;
-        }
-
-        result.textContent = `✅ 요청 성공\n\n${JSON.stringify(data, null, 2)}`;
-      } catch (err) {
-        result.textContent = `🚨 요청 실패\n${err.message}`;
+    // ===== 이벤트 바인딩 =====
+    $("#loadTokenBtn").addEventListener("click", () => {
+      const key = $("#tokenKey").value.trim() || "idToken";
+      const token = sessionStorage.getItem(key);
+      if (!token) {
+        appendLog(`세션스토리지에서 키 "${key}"로 토큰을 찾지 못했습니다.`, "토큰 로드");
+      } else {
+        $("#idToken").value = token;
+        appendLog(`세션스토리지 키 "${key}"에서 토큰을 불러왔습니다.`, "토큰 로드");
       }
     });
+
+    $("#previewProfileBtn").addEventListener("click", () => {
+      const payload = readProfilePayload();
+      appendLog(payload, "프로필 보낼 JSON 미리보기");
+    });
+
+    $("#sendProfileBtn").addEventListener("click", () => {
+      const payload = readProfilePayload();
+      if (Object.keys(payload).length === 0) {
+        appendLog("보낼 필드가 없습니다. 하나 이상 입력/선택하세요.", "검증");
+        return;
+      }
+      send("/me/profile", payload);
+    });
+
+    $("#previewPasswordBtn").addEventListener("click", () => {
+      const payload = readPasswordPayload();
+      appendLog(payload, "비밀번호 보낼 JSON 미리보기");
+    });
+
+    $("#sendPasswordBtn").addEventListener("click", () => {
+      const payload = readPasswordPayload();
+      if (!payload.currentPassword || !payload.password) {
+        appendLog("currentPassword와 password를 모두 입력하세요.", "검증");
+        return;
+      }
+      send("/me/password", payload);
+    });
+
+    // UX: 페이지 진입 시 API BASE 자동 포커스
+    $("#apiBase").focus();
   </script>
 </body>
 </html>
