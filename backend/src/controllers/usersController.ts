@@ -117,7 +117,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
       }
     }
 
-    await updateUserServiceUID(uid, req.body);
+    await updateUserServiceUID(uid, payload);
 
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
@@ -163,7 +163,7 @@ export const updateUserPassword = async (req: Request, res: Response) => {
       throw error;
     }
 
-    await updateUserServiceUID(uid, req.body);
+    await updateUserServiceUID(uid, payload);
 
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
