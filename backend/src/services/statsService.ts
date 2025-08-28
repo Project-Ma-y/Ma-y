@@ -88,7 +88,7 @@ export const getApplicationReachService = async () => {
 
       const entry = statsMap.get(date)!;
       entry.sessions += 1;
-      if (data.isRegistered) {
+      if (data.visitApplyPageCount > 0) {
         entry.reachApplypageSessions += 1;
       }
     })
@@ -127,13 +127,54 @@ export const getApplicationReachService = async () => {
 // 동행 신청 완료 회수가 1 이상인 세션 id 개수 / 세션 id 개수
 export const getApplicationConversionService = async () => {
   try {
-    //세션 id 개수
-    const snapshotA = await collectionRef.count().get();
-    //동행 신청 페이지 도달 횟수가 1 이상인 id 개수
-    const snapshotB = await collectionRef.where('applyCount', '>', 0).count().get();
+    const snapshot = await collectionRef.get();
 
-    const applicationConversion = snapshotB.data().count / snapshotA.data().count;
-    return applicationConversion;
+    //날짜별 집계를 담을 Map
+    const statsMap = new Map<
+      string,
+      { sessions: number; applyCompleteSessions: number }
+    >();
+
+    snapshot.forEach((doc: any) => {
+      const data = doc.data();
+
+      //날짜
+      if (!data.createdAt) return;
+      const date = data.createdAt.split("T")[0];
+      if (!statsMap.has(date)) {
+        statsMap.set(date, { sessions: 0, applyCompleteSessions: 0 });
+      }
+
+      const entry = statsMap.get(date)!;
+      entry.sessions += 1;
+      if (data.applyCount > 0) {
+        entry.applyCompleteSessions += 1;
+      }
+    })
+
+    // Map → Array 변환 & 날짜순 정렬
+    let result = Array.from(statsMap.entries()).map(([date, value]) => ({
+      date,
+      ...value,
+    }));
+    result.sort((a, b) => a.date.localeCompare(b.date));
+
+
+    //누적(total) 값 추가
+    let totalSessions = 0;
+    let totalApplyCompleteSessions = 0;
+
+    result = result.map((entry) => {
+      totalSessions += entry.sessions;
+      totalApplyCompleteSessions += entry.applyCompleteSessions;
+      return {
+        ...entry,
+        totalSessions,
+        totalRegisteredSessions: totalApplyCompleteSessions,
+      };
+    });
+
+    return result;
   } catch (error) {
     console.error("❌ getApplicationConversionService 오류:", error);
     throw new Error("statsService: getApplicationConversionService 오류 발생");
