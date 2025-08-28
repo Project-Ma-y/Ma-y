@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { registerUser } from '../services/authService'
+import { registerParentService, registerUser } from '../services/authService'
+import { getUserByIdService, updateUserService } from "../services/usersService";
 import { validateRegisterPayload } from "../validators/registerValidator";
 import { updateSignUpCompletion } from "./sessionsController";
 
@@ -18,8 +19,17 @@ export const registerHandler = async (req: Request, res: Response) => {
       throw error;
     }
 
-    //DB에 등록
-    const user = await registerUser(req.body);
+    const exists = await getUserByIdService(req.body.Id);
+    let user;
+
+    //기존 DB에 존재하는 지 확인
+    if (exists) {
+      user = await updateUserService(req.body);
+    }
+    else {
+      //DB에 등록
+      user = await registerUser(req.body);
+    }
 
     //세션 업데이트
     await updateSignUpCompletion(req, res, user.uid);
@@ -62,6 +72,7 @@ export const testAuth = async (req: Request, res: Response) => {
   }
 }
 
+//관리자 확인
 export const adminCheck = async (req: Request, res: Response) => {
   try {
     const uid = (req as any).user?.uid; // verifyFirebaseToken에서 채워넣음
@@ -89,3 +100,62 @@ export const adminCheck = async (req: Request, res: Response) => {
     });
   }
 }
+
+//부모 등록
+export const registerParent = async (req: Request, res: Response) => {
+  try {
+    // 부모 정보 배열 처리
+    const parents = Array.isArray(req.body) ? req.body : [req.body];
+
+    if (parents.length === 0) {
+      const error: any = new Error("부모 정보가 없습니다.");
+      error.code = 400;
+      throw error;
+    }
+
+    // 부모 등록 (Promise.all)
+    const results = await Promise.all(
+      parents.map(async (parent) => {
+        return await registerParentService(parent);
+      })
+    );
+
+    // 현재 로그인한 가족 유저 찾기
+    const family = await getUserByIdService(req.user?.uid);
+    if (!family) {
+      const error: any = new Error("해당 가족 유저를 찾을 수 없습니다.");
+      error.code = 404;
+      throw error;
+    }
+
+    // registeredFamily 배열 생성
+    const registeredFamily = results.map((parentCredential, idx) => ({
+      uid: parentCredential.uid,
+      name: parentCredential.name,
+      relation: parents[idx].relation,
+      linkedAt: new Date().toISOString(),
+    }));
+
+    // 가족 정보 업데이트
+    await updateUserService({
+      id: family.id,
+      registeredFamily,
+    });
+
+    res.status(201).json({ message: '등록 성공' });
+
+  } catch (error: any) {
+    const statusCode = typeof error.code === "number" ? error.code : 500;
+
+    console.error(`[❌ 부모 등록 in registerParent ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown",
+    });
+
+    res.status(statusCode).json({
+      message: "서버에 문제가 발생했습니다. 나중에 다시 시도해주세요.",
+    });
+  }
+};

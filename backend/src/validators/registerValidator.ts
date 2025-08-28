@@ -3,7 +3,7 @@ import { RegisterPayload } from '../interfaces/auth';
 export function validateRegisterPayload(payload: RegisterPayload): string[] {
   const errors: string[] = [];
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const birthdateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
   function isValidDateString(dateStr: string): boolean {
@@ -19,9 +19,9 @@ export function validateRegisterPayload(payload: RegisterPayload): string[] {
     );
   }
 
-  if (!payload.email || !emailRegex.test(payload.email)) {
-    errors.push("유효한 이메일 형식이 아닙니다.");
-  }
+  // if (!payload.email || !emailRegex.test(payload.email)) {
+  //   errors.push("유효한 이메일 형식이 아닙니다.");
+  // }
 
   if (payload.password !== payload.pwVerify) {
     errors.push("비밀번호 확인이 일치하지 않습니다.");
