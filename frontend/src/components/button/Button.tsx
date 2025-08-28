@@ -1,3 +1,4 @@
+// src/components/button/Button.tsx
 import React from "react";
 
 interface ButtonProps {
@@ -6,54 +7,45 @@ interface ButtonProps {
   onClick?: () => void;
   aria?: string;
   disabled?: boolean;
-  bgColor?: string;
-  textColor?: string;
+  bgColor?: string;   // (옵션) 외부에서 강제 색상 오버라이드
+  textColor?: string; // (옵션) 외부에서 강제 색상 오버라이드
+  className?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
   type = "default",
-  buttonName = "Button",
+  buttonName = "button",
   onClick,
-  aria = "아리아를 입력하세요",
+  aria = "버튼",
   disabled = false,
   bgColor,
   textColor,
+  className = "",
 }) => {
-  const customStyle = {
-    backgroundColor: bgColor,
-    color: textColor,
+  const base =
+    "inline-flex items-center justify-center px-8 py-3 rounded-2xl text-base font-bold transition-colors duration-200 " +
+    (disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer");
+
+  // --color-primary: #f7b349 (전역에 선언되어 있다고 가정)
+  const byType: Record<string, string> = {
+    // 채움(상단 이미지)
+    default: "bg-[var(--color-primary)] text-white hover:opacity-90",
+    // 회색(중간 이미지)
+    close: "bg-[#9a9a9a] text-[#cdcdcd]",
+    // 필요 시 default와 동일하게 사용
+    primary: "bg-[var(--color-primary)] text-white hover:opacity-90",
+    // 아웃라인(하단 이미지)
+    secondary:
+      "bg-white text-[var(--color-primary)] border border-[var(--color-primary)] hover:bg-[rgba(247,179,73,0.06)]",
   };
 
-  const baseClass = `
-    px-4 py-2 rounded text-sm font-medium transition-colors duration-200
-    ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-  `;
-
-  const typeClassMap: Record<string, string> = {
-    default: `
-      bg-[var(--color-primary)]
-      text-[var(--color-black)]
-      hover:bg-[var(--color-gray-300)]
-    `,
-    close: `
-      bg-[var(--color-red)]
-      text-white
-      hover:bg-red-600
-    `,
-    primary: `
-      bg-[var(--color-blue)]
-      text-white
-      hover:bg-blue-600
-    `,
-    secondary: `
-      bg-[var(--color-white)]
-      text-[var(--color-gray-700)]
-      border border-[var(--color-gray-300)]
-      hover:bg-[var(--color-gray-100)]
-    `,
-  };
-
-  const className = `${baseClass} ${typeClassMap[type] ?? ""}`;
+  const customStyle =
+    bgColor || textColor
+      ? ({
+          backgroundColor: bgColor,
+          color: textColor,
+        } as React.CSSProperties)
+      : undefined;
 
   return (
     <button
@@ -61,10 +53,10 @@ const Button: React.FC<ButtonProps> = ({
       aria-hidden={disabled}
       onClick={onClick}
       disabled={disabled}
-      className={className}
-      style={bgColor || textColor ? customStyle : undefined}
+      className={`${base} ${byType[type] ?? ""} ${className}`}
+      style={customStyle}
     >
-      {type === "close" ? "닫기" : buttonName}
+      {type === "close" ? "동행완료" : buttonName}
     </button>
   );
 };

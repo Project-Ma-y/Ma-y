@@ -35,6 +35,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
   }
 };
 
+
 export const getUserByUID = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

@@ -18,3 +18,5 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   )
 }
+
+export default AppShell;

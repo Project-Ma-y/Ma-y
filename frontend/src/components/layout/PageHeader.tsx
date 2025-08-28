@@ -8,3 +8,4 @@ export function PageHeader({ title, actions }: { title: string; actions?: ReactN
     </div>
   )
 }
+export default PageHeader;

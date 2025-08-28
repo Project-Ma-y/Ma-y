@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { registerParentService, registerUser } from '../services/authService'
+import { registerParentService, registerParentService, registerUser } from '../services/authService'
 import { getUserByIdService, updateUserService, getUserByUIDService } from "../services/usersService";
+import { getUserByIdService, updateUserService } from "../services/usersService";
 import { validateRegisterPayload } from "../validators/registerValidator";
 import { updateSignUpCompletion } from "./sessionsController";
 
@@ -75,6 +76,7 @@ export const testAuth = async (req: Request, res: Response) => {
   }
 }
 
+//관리자 확인
 //관리자 확인
 export const adminCheck = async (req: Request, res: Response) => {
   try {
