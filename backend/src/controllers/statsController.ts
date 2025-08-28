@@ -24,7 +24,7 @@ export const getSignupConversion = async (req: Request, res: Response) => {
 };
 
 // 동행 신청 페이지 도달율
-// 동행 신청 페이지 도달 횟수가 1 이상인 id 개수 / 세션 id 개수
+// 동행 신청 페이지 도달 횟수가 1 이상인 세션 id 개수 / 세션 id 개수
 export const getApplicationReach = async (req: Request, res: Response) => {
   try {
     const data = await getApplicationReachService();

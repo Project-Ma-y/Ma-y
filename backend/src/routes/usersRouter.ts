@@ -7,7 +7,7 @@ import { checkAdminUid } from "../middleware/checkAdminUid";
 const router = Router();
 
 router.get("/me", verifyFirebaseToken, loadSession, getMyProfile); //내 정보 보기
-router.put("/:id", verifyFirebaseToken, loadSession, updateUser); //정보 업데이트
+router.put("/me", verifyFirebaseToken, loadSession, updateUser); //정보 업데이트
 router.get("/:id", verifyFirebaseToken, loadSession, checkAdminUid, getUserByUID); //회원 상세 정보 조회
 router.delete("/:id", verifyFirebaseToken, loadSession, checkAdminUid, deleteUser); //회원 삭제
 

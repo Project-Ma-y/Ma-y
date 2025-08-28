@@ -1,6 +1,18 @@
 import { Request, Response } from "express";
-import { getAllUsersService, getUserByUIDService, deleteUserService, updateUserService, updateUserServiceUID } from "../services/usersService";
+import { getAllUsersService, getUserByUIDService, deleteUserService, updateUserService, updateUserServiceUID, compareUserPassword } from "../services/usersService";
 import { REPLCommand } from "repl";
+
+// 업데이트 가능한 필드
+const UPDATE_ALLOWED_FIELDS = [
+  "password",
+  "name",
+  "phone",
+  "gender",
+  "birthdate",
+  "address",
+  "registeredFamily",
+];
+
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
@@ -86,8 +98,29 @@ export const getMyProfile = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    await updateUserServiceUID(id, req.body);
+    // uid 불러오기
+    const uid = req.user?.uid;
+    if (!uid) {
+      const error: any = new Error("로그인이 필요합니다.");
+      error.code = 401;
+      throw error;
+    }
+
+    // body에서 허용된 필드만 추출
+    const payload: any = {};
+    for (const field of UPDATE_ALLOWED_FIELDS) {
+      if (req.body[field] !== undefined) {
+        payload[field] = req.body[field];
+      }
+    }
+
+    //password면 기존 비밀번호와 대조하는 과정을 거칠 것
+    if (req.body.currentPassword) {
+      await compareUserPassword(uid, payload, req.body.currentPassword);
+    }
+
+    await updateUserServiceUID(uid, req.body);
+
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;

@@ -96,15 +96,15 @@ export const getUserByIdService = async (id: any) => {
 
 export const updateUserService = async (payload: Partial<RegisterPayload>) => {
   try {
-if (!payload || !payload.id) {
+    if (!payload || !payload.id) {
       throw new Error("정보가 존재하지 않습니다");
     }
 
     const userRecord = await getUserByIdService(payload.id);
     // uid 찾기
     let userId;
-    if(userRecord) userId = userRecord.uid;
-    
+    if (userRecord) userId = userRecord.uid;
+
 
     // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
     const updateAuthPayload: any = {};
@@ -129,7 +129,7 @@ if (!payload || !payload.id) {
 
 export const updateUserServiceUID = async (userId: string, payload: Partial<RegisterPayload>) => {
   try {
-if (!payload || !userId) {
+    if (!payload || !userId) {
       throw new Error("정보가 존재하지 않습니다");
     }
     // Firebase Auth 정보 업데이트 (password나 name만 변경될 때만)
@@ -147,6 +147,46 @@ if (!payload || !userId) {
     return userRecord;
   } catch (error) {
     console.error('Error updating user in updateUserService:', error);
+    throw error;
+  }
+}
+
+export const compareUserPassword = async (userId: string, payload: Partial<RegisterPayload>, currentPassword: string) => {
+  try {
+    if (!payload || !userId) {
+      throw new Error("정보가 존재하지 않습니다");
+    }
+    if (!currentPassword) {
+      const err = new Error("비밀번호 변경 시 현재 비밀번호를 입력해야 합니다.");
+      (err as any).status = 401;
+      throw err;
+    }
+
+    // Firestore에서 기존 사용자 데이터 불러오기
+    const userDocRef = db.collection("users").doc(userId);
+    const userSnapshot = await userDocRef.get();
+    if (!userSnapshot.exists) {
+      const error: any = new Error("사용자를 찾을 수 없습니다.");
+      error.code = 404;
+      throw error;
+    }
+
+    const currentUserData = userSnapshot.data();
+
+    //검증
+    if (payload.password) {
+      const isPasswordCorrect = currentPassword === currentUserData?.password;
+
+      if (!isPasswordCorrect) {
+        const err = new Error("현재 비밀번호가 일치하지 않습니다.");
+        (err as any).status = 401;
+        throw err;
+      }
+
+    }
+
+  } catch (error) {
+    console.error('Error updating user in compareUserPassword:', error);
     throw error;
   }
 }
