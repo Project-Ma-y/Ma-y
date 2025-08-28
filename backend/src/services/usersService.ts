@@ -158,7 +158,7 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
     }
     if (!currentPassword) {
       const err = new Error("비밀번호 변경 시 현재 비밀번호를 입력해야 합니다.");
-      (err as any).status = 401;
+      (err as any).code = 401;
       throw err;
     }
 
@@ -179,7 +179,7 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
 
       if (!isPasswordCorrect) {
         const err = new Error("현재 비밀번호가 일치하지 않습니다.");
-        (err as any).status = 401;
+        (err as any).code = 401;
         throw err;
       }
 
