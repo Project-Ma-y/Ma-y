@@ -16,21 +16,13 @@ export default function Home() {
     >
       {/* Hero 이미지 자리 (사각 박스) */}
       <div className="overflow-hidden rounded-2xl">
-        <div className="relative h-[160px] w-full bg-gray-200">
+        <div className="relative h-full bg-gray-200">
           {/* 사진 대신 플레이스홀더 텍스트 */}
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-gray-500">
-            이미지 영역
-          </span>
+          
+            <img src="/public/assets/img/may_1.png" alt="" />
+          
 
-          {/* 오른쪽 아래 카피 (디자인 참고) */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent px-4 pb-4 pt-10">
-            <div className="text-right text-2xl font-extrabold leading-7 text-white">
-              낯선 길도, <br /> 이제는 익숙하게
-            </div>
-            <div className="mt-1 text-right text-xs text-white/85">
-              신뢰할 수 있는 동행 파트너와 함께하세요.
-            </div>
-          </div>
+          
         </div>
       </div>
 

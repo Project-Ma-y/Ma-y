@@ -16,6 +16,7 @@ const MyPage = lazy(() => import("@/pages/Mypage"));
 const ReservationDetail = lazy(() => import("@/pages/ReservationDetail"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
 const MyPageEdit = lazy(() => import("@/pages/MyPageEdit"));
+const ParentsManage = lazy(() => import("@/pages/ParentsManage"));
 // const CompanionInfoPage = lazy(() => import("@/pages/CompanionInfoPage"));
 export const AdminPage = lazy(() => import("@/pages/admin/AdminPage"));
 
@@ -86,7 +87,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    path: "/reservation-detail",
+    path: "/reservation/:id",
     element: (
       <Suspense fallback={<Loader fullScreen />}>
         <ReservationDetail />
@@ -109,5 +110,13 @@ export const router = createBrowserRouter([
       </Suspense>
     ),
   },
+  {
+  path: "/parents/manage",
+  element:  (
+      <Suspense fallback={<Loader fullScreen />}>
+        <ParentsManage/>
+      </Suspense>
+    ),
+},
   { path: "*", element: <NotFound /> },
 ]);

@@ -1,121 +1,87 @@
-import { create } from 'zustand';
-import { onAuthStateChanged } from 'firebase/auth';
-import type { Auth, User } from 'firebase/auth';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+import type { User } from "firebase/auth";
 
-// 확장된 사용자 정보 타입 정의
-export interface UserProfile {
-  uid: string | null;
-  email: string | null;
-  name?: string;
-  phone?: string;
-  gender?: string;
-  address?: string;
-  birthdate?: string;
-  customerType?: string;
-  // 등록된 가족 정보
-  registeredFamily?: Array<{
-    uid: string;
-    name: string;
-    relation: string;
-    linkedAt: string;
-  }>;
-}
+const API_BASE_URL = "https://ma-y-5usy.onrender.com/api/users";
 
-// 사용자 상태 타입 정의 (프로필 정보 포함)
-export interface UserState {
-  user: UserProfile;
-  isLoading: boolean;
+interface UserState {
+  user: User | null;
+  profile: any | null;
   isLoggedIn: boolean;
-  setUser: (user: UserProfile) => void;
-  setLoading: (isLoading: boolean) => void;
-  logout: () => void;
+  isUserLoading: boolean;
+  isProfileLoading: boolean;
+  error: string | null;
+  
+  setUser: (user: User) => void;
+  setProfile: (profile: any) => void;
+  clearUser: () => void;
+  fetchUserProfile: () => Promise<void>;
 }
 
-// Zustand 스토어 생성
-export const useUserStore = create<UserState>((set) => ({
-  user: {
-    uid: null,
-    email: null,
-  },
-  isLoading: true,
-  isLoggedIn: false,
-  setUser: (user) => set({ user, isLoggedIn: !!user.uid }),
-  setLoading: (isLoading) => set({ isLoading }),
-  logout: () => set({ user: { uid: null, email: null }, isLoggedIn: false }),
-}));
+export const useUserStore = create<UserState>()(
+  devtools((set, get) => ({
+    user: null,
+    profile: null,
+    isLoggedIn: false,
+    isUserLoading: true, // Initially true, becomes false after the first auth check
+    isProfileLoading: false, // Initial state should be false
+    error: null,
 
-/**
- * Firebase 인증 상태 변경 리스너를 초기화하고 유저 스토어를 업데이트합니다.
- * 이 함수는 앱 시작 시 한 번만 호출되어야 합니다.
- * @param auth Firebase Auth 인스턴스
- */
-export const initializeUser = (auth: Auth) => {
-  useUserStore.getState().setLoading(true);
-
-  const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-    if (user) {
-      // 사용자가 로그인한 경우
+    setUser: (user) => {
+      set({ user, isLoggedIn: !!user, isUserLoading: false });
+    },
+    setProfile: (profile) => {
+      set({ profile, isProfileLoading: false });
+    },
+    clearUser: () => {
+      set({
+        user: null,
+        profile: null,
+        isLoggedIn: false,
+        isUserLoading: false,
+        isProfileLoading: false,
+        error: null,
+      });
+    },
+    fetchUserProfile: async () => {
+      const { user, isProfileLoading } = get();
+      
+      // 이미 프로필 로딩 중이거나 사용자가 없으면 호출을 스킵
+      if (isProfileLoading || !user) {
+        console.log("프로필 데이터를 이미 불러오고 있거나, 유저가 존재하지 않습니다. 스킵합니다.");
+        return;
+      }
+      
+      set({ isProfileLoading: true, error: null });
+      const currentUser = user;
+      
       try {
-        // Firebase 인증 토큰을 가져옵니다.
-        const token = await user.getIdToken();
-        // 토큰을 HTTP 헤더에 담아 사용자 프로필 API 호출
-        const response = await fetch('/api/users/me', {
+        const idToken = await currentUser.getIdToken();
+        console.log("API 호출을 시작합니다. 사용자 토큰:", idToken ? "토큰 있음" : "토큰 없음");
+
+        const response = await fetch(`${API_BASE_URL}/me`, {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
           },
         });
 
+        console.log("API 응답 상태:", response.status, response.statusText);
+
         if (response.ok) {
-          const apiData = await response.json();
-
-          // API 응답 데이터가 제공된 형식과 일치하는지 확인
-          if (apiData && typeof apiData.id === 'string') {
-            const userProfile: UserProfile = {
-              uid: apiData.id,
-              email: user.email, // Firebase 인증 정보에서 email 사용
-              name: apiData.name,
-              phone: apiData.phone,
-              gender: apiData.gender,
-              address: apiData.address,
-              birthdate: apiData.birthdate,
-              customerType: apiData.customerType,
-              registeredFamily: apiData.registeredFamily,
-            };
-            useUserStore.getState().setUser(userProfile);
-          } else {
-            console.error("API response has an unexpected format.");
-            // API 응답 형식이 예상과 다를 경우, 인증 정보만 저장
-            useUserStore.getState().setUser({
-              uid: user.uid,
-              email: user.email,
-            });
-          }
+          const profileData = await response.json();
+          console.log("프로필 데이터를 성공적으로 받았습니다:", profileData);
+          set({ profile: profileData, isProfileLoading: false });
         } else {
-          // API 호출 실패 시, 인증 정보만 저장
-          console.error(`Failed to fetch user profile from API. Status: ${response.status}`);
-          useUserStore.getState().setUser({
-            uid: user.uid,
-            email: user.email,
-          });
+          const errorData = await response.json();
+          console.error(`API에서 프로필 가져오기 실패. 상태: ${response.status}`, errorData);
+          set({ isProfileLoading: false, error: `프로필 가져오기 실패: ${errorData.message}` });
         }
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        // 오류 발생 시, 인증 정보만 저장
-        useUserStore.getState().setUser({
-          uid: user.uid,
-          email: user.email,
-        });
+      } catch (err) {
+        console.error("프로필 정보 가져오는 중 오류 발생:", err);
+        set({ isProfileLoading: false, error: "프로필 정보를 가져오는 중 오류 발생" });
       }
-    } else {
-      // 사용자가 로그아웃한 경우
-      useUserStore.getState().setUser({
-        uid: null,
-        email: null,
-      });
-    }
-    useUserStore.getState().setLoading(false);
-  });
-
-  // 이 리스너는 앱이 실행되는 동안 유지됩니다.
-  return unsubscribe;
-};
+    },
+  }))
+);

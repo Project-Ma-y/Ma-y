@@ -1,25 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
+import { BrowserRouter } from 'react-router-dom';
+import App from '@/App.tsx';
 import '@/assets/style/index.css';
-import { useUserStore } from '@/store/userStore.ts';
-import { BrowserRouter } from 'react-router-dom'; // BrowserRouter를 import 합니다.
-import { getAuth } from 'firebase/auth';
-import { app as firebaseApp } from '@/services/firebase';
-import { initializeUser } from '@/store/userStore.ts';
-import { createRoot } from 'react-dom/client';
-const container = document.getElementById('root');
-const root = createRoot(container);
+import { initializeAuthListener } from '@/services/firebase.ts';
 
-// Firebase Auth 인스턴스 초기화
-const auth = getAuth(firebaseApp);
+// Firebase 인증 상태 리스너를 앱 시작 시 한 번만 초기화합니다.
+initializeAuthListener();
 
-// 앱 시작 시 한 번만 사용자 상태 초기화
-// 이 함수는 onAuthStateChanged 리스너를 설정하고, 사용자 상태를 업데이트합니다.
-initializeUser(auth);
-
-root.render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+      <App />
   </React.StrictMode>
 );

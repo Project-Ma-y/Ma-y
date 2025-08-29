@@ -70,8 +70,8 @@ const Header: React.FC<HeaderProps> = ({
         {/* 좌측 로고/타이틀 */}
         {type === "default" && (
             <div className="flex items-center">
-                <span className="rounded-md bg-[var(--color-primary)]/15 px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]">
-                  m
+                <span className="rounded-md px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]">
+                  <img src="/public/assets/logo/logo.png" className="w-12" alt="" />
                 </span>
             </div>
         )}

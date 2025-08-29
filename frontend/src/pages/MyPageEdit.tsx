@@ -111,50 +111,6 @@ export default function MyPageEdit() {
             onChange={handleProfileChange}
           />
         </Card>
-
-        {/* Guardian section */}
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-gray-700">
-            보호 대상자 ({guardians.length}명)
-          </div>
-          {guardians.map((guardian, index) => (
-            <Card key={index} className="flex flex-col space-y-3 p-4">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                  <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                  </svg>
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="truncate text-sm font-bold">{guardian.name}</span>
-                    <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">m:y</span>
-                  </div>
-                  <div className="truncate text-xs text-gray-500">
-                    {guardian.relation} | {guardian.phone}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Input
-                  label="이름"
-                  value={guardian.name}
-                  onChange={(e) => handleGuardianChange(index, "name", e.target.value)}
-                />
-                <Input
-                  label="관계"
-                  value={guardian.relation}
-                  onChange={(e) => handleGuardianChange(index, "relation", e.target.value)}
-                />
-                <Input
-                  label="전화번호"
-                  value={guardian.phone}
-                  onChange={(e) => handleGuardianChange(index, "phone", e.target.value)}
-                />
-              </div>
-            </Card>
-          ))}
-        </div>
         
         {/* Save button */}
         <div className="pb-4">
