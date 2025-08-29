@@ -26,7 +26,7 @@ export const createBooking = async (req: Request, res: Response) => {
       throw error;
     }
     const userData = await getUserByUIDService(userId);
-    const userType = userData.role;
+    const userType = userData.customerType;
     const bookingPayload: Partial<BookingPayload> = {
       userId,
       isDeleted: false,
