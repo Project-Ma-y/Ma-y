@@ -2,10 +2,21 @@
 import axios, { AxiosError } from "axios";
 import { getAuth } from "firebase/auth";
 
-// Vite proxy로 동일 오리진('/api') 호출 → 쿠키 자동 포함
+/**
+ * baseURL 전략
+ * - DEV: Vite devServer proxy로 '/api'
+ * - PROD: 반드시 VITE_API_URL로 절대 URL 제공 (예: https://your-backend.com/api)
+ */
+const BASE_URL =
+  (import.meta.env.PROD
+    ? import.meta.env.VITE_API_URL // 배포 환경: 절대 URL 필수
+    : "/api") || "/api";
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: BASE_URL,
   headers: { "Content-Type": "application/json", Accept: "application/json" },
+  // 쿠키 세션 안 쓰고 Firebase Bearer 토큰만 쓸 거면 false 유지
+  withCredentials: false,
 });
 
 api.interceptors.request.use(async (config) => {
@@ -15,7 +26,8 @@ api.interceptors.request.use(async (config) => {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
   }
-  (config as any).withCredentials = false; // 강제로 끔
+  // 보수적으로 매 요청에 명시
+  config.withCredentials = false;
   return config;
 });
 

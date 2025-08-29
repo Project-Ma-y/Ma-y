@@ -92,11 +92,11 @@ export default function SignUp() {
         <div className="flex flex-col gap-6">
 
           <div className="text-center">
-            <div className="text-2xl font-extrabold">어떤 동행인을 원하나요?</div>
+            <div className="text-2xl font-extrabold">어떤 동행매니저를 원하나요?</div>
             <div className="mt-1 text-[var(--color-primary)] font-semibold">최대 5개 선택가능</div>
           </div>
           <div>
-            <div className="mb-2 text-sm">🍀 선호하는 <b>푸름이의 성격</b>을 선택해주세요!</div>
+            <div className="mb-2 text-sm">선호하는 <b>매니저의 성격</b>을 선택해주세요!</div>
             <TagList
               tags={TRAITS}
               value={traits}
@@ -142,7 +142,7 @@ export default function SignUp() {
             </div>
           </div>
           <Input label="이름" required value={form.name}
-                 onChange={e => setForm(s => ({ ...s, name: e.target.value }))} />
+                 onChange={e => setForm(s => ({ ...s, name: e.target.value }))}  />
 
           <div className="space-y-2">
             <span className="block text-sm text-gray-400">
@@ -174,18 +174,18 @@ export default function SignUp() {
                  value={form.phone}
                  onChange={e => setForm(s => ({ ...s, phone: e.target.value }))} />
 
+<Input label="생년월일" required placeholder="YYYY-MM-DD" id="birthdate"
+                 value={form.birthdate}
+                 onChange={e => setForm(s => ({ ...s, birthdate: e.target.value }))} />
           <Input label="비밀번호" required type="password" value={form.password}
                  onChange={e => setForm(s => ({ ...s, password: e.target.value }))} />
 
           <Input label="비밀번호 확인" required type="password" value={form.pwVerify}
                  onChange={e => setForm(s => ({ ...s, pwVerify: e.target.value }))} />
 
-          <Input label="도로명 주소" required value={form.address}
+          <Input label="도로명 주소" value={form.address}
                  onChange={e => setForm(s => ({ ...s, address: e.target.value }))} />
 
-          <Input label="생년월일" required placeholder="YYYY-MM-DD" id="birthdate"
-                 value={form.birthdate}
-                 onChange={e => setForm(s => ({ ...s, birthdate: e.target.value }))} />
 
           {err && <div className="pt-1 text-sm text-red-500">{err}</div>}
 

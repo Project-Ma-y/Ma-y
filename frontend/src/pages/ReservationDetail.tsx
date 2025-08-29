@@ -258,10 +258,10 @@ export default function ReservationDetail() {
           </Link>
         </Card>
 
-        {/* ✅ 동행할 시니어 정보 */}
-        <Card>
-          <div className="mb-4 text-base font-semibold text-gray-700">동행할 시니어</div>
-          {reservationDetails.seniorProfile ? (
+       {/* ✅ 동행할 시니어 정보 */}
+        {reservationDetails.seniorProfile && (
+          <Card>
+            <div className="mb-4 text-base font-semibold text-gray-700">동행할 시니어</div>
             <div className="flex items-center justify-between p-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200">
@@ -291,12 +291,9 @@ export default function ReservationDetail() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              시니어 프로필 정보가 포함되어 있지 않습니다.
-            </div>
-          )}
-        </Card>
+          </Card>
+        )}
+
 
         {/* 동행 정보 */}
         <Card className="space-y-4">
@@ -360,7 +357,7 @@ export default function ReservationDetail() {
           <div className="flex justify-between text-base">
             <span className="text-gray-500">결제 여부</span>
             <span className="font-semibold text-gray-800">
-              {reservationDetails.isPaid ? "결제 완료" : "미결제"}
+              {reservationDetails.isPaid ? "결제 대기" : "미결제"}
             </span>
           </div>
           {reservationDetails.isPaid && reservationDetails.paidAt && (
