@@ -3,6 +3,7 @@ import MainLayout from "@/layouts/MainLayout";
 import Button from "@/components/button/Button";
 import Card from "@/components/Card";
 import { useNavigate } from "react-router-dom";
+import may1Url from "@/assets/img/may_1.png";
 
 export default function Home() {
   const nav = useNavigate();
@@ -19,7 +20,7 @@ export default function Home() {
         <div className="relative h-full bg-gray-200">
           {/* 사진 대신 플레이스홀더 텍스트 */}
           
-            <img src="/assets/img/may_1.png" alt="" />
+            <img src={may1Url} alt="may" />
           
 
           

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Switch from "@/components/Switch";
 import { useUIStore } from "@/store/uiStore";
+import logoUrl from "@/assets/logo/logo.png";
 
 interface HeaderProps {
   type?: "default" | "header-a" | "header-b";
@@ -73,7 +74,7 @@ const Header: React.FC<HeaderProps> = ({ type = "default", title = "" }) => {
         {type === "default" && (
           <div className="flex items-center">
             <span className="rounded-md px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]">
-              <img src="/assets/logo/logo.png" className="w-12" alt="" />
+              <img src={logoUrl} alt="logo" className="w-12" />
             </span>
           </div>
         )}

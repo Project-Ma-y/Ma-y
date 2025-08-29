@@ -10,6 +10,7 @@ export default defineConfig({
     tailwindcss(),
     lightningcss(), 
   ],
+  base: './', // ← 배포 시 경로 문제 해결
   server: {
     proxy: {
       // 프론트:  /api/users/family  →  백엔드: https://ma-y-5usy.onrender.com/api/users/family
