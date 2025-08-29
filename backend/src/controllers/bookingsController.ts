@@ -27,9 +27,21 @@ export const createBooking = async (req: Request, res: Response) => {
     }
     const userData = await getUserByUIDService(userId);
     const userType = userData.customerType;
+
+    let seniorId = ''
+    //만약 시니어면 본인 id
+    if(userType === 'senior'){
+      seniorId = userId;
+    }
+    else if(userType === 'family'){
+      seniorId = req.body.seniorId;
+    } else{
+      throw Error("customerType을 불러올 수 없습니다.");
+    }
+    //만약 family면
     const bookingPayload: Partial<BookingPayload> = {
       userId,
-      seniorId: req.body.seniorId,
+      seniorId,
       isDeleted: false,
       startBookingTime: req.body.startBookingTime,
       endBookingTime: req.body.endBookingTime,
