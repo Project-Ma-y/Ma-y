@@ -3,45 +3,38 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>예약 생성 테스트 (createBooking)</title>
+  <title>예약 생성/삭제 테스트 (/api/booking)</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
     body { margin: 0; padding: 24px; background: #f7f7f9; }
     h1 { margin: 0 0 16px; font-size: 20px; }
+    h2 { margin: 0 0 12px; font-size: 16px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .row { display: grid; grid-template-columns: 170px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
     .row label { font-weight: 600; }
-    .row input[type="text"],
-    .row input[type="datetime-local"],
-    .row input[type="url"],
-    .row textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-    fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; }
-    legend { padding: 0 6px; font-weight: 600; }
-    .actions { display: flex; gap: 8px; }
+    input[type="text"], input[type="datetime-local"], input[type="url"], textarea, select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    textarea { min-height: 72px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; font-weight: 600; }
     button.secondary { background: #fff; color: #111827; }
     .muted { color: #6b7280; font-size: 12px; }
     .ok { color: #065f46; }
-    .warn { color: #92400e; }
     .err { color: #991b1b; }
     pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
-    .inline { display:inline-flex; align-items:center; gap:8px; }
-    .help { font-size: 12px; color: #374151; margin-top: -6px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   </style>
 </head>
 <body>
-  <h1>예약 생성 테스트 <span class="muted">POST /booking</span></h1>
+  <h1>예약 생성/삭제 테스트 <span class="muted">POST /booking, DELETE /booking/:id</span></h1>
 
+  <!-- 공통 설정 -->
   <div class="card">
+    <h2>공통</h2>
     <div class="row">
-      <label for="endpoint">API Endpoint</label>
-      <input id="endpoint" type="url" placeholder="https://your-api.example.com/api/booking" />
+      <label for="base">API Base</label>
+      <input id="base" type="url" placeholder="https://your-api.example.com/api/booking" />
     </div>
-    <div class="help">※ 라우터가 <code>router.post("/", ...)</code>라면 상위 경로가 <code>/api/booking</code> 또는 <code>/api/bookings</code>일 가능성이 큽니다. 실제 경로로 수정해 주세요.</div>
-  </div>
-
-  <div class="card">
     <div class="row">
       <label for="token">idToken (로컬스토리지)</label>
       <input id="token" type="text" placeholder="localStorage.idToken 에서 자동 로드" />
@@ -50,180 +43,170 @@
       <button id="reloadToken" class="secondary">토큰 다시 불러오기</button>
       <button id="saveToken" class="secondary">이 값을 localStorage.idToken 으로 저장</button>
     </div>
-    <div id="tokenStatus" class="help"></div>
+    <div id="tokenStatus" class="muted"></div>
   </div>
 
+  <!-- 예약 생성: POST /booking -->
   <div class="card">
-    <div class="row">
-      <label for="start">시작 시간</label>
-      <input id="start" type="datetime-local" />
+    <h2>예약 생성 <span class="muted">POST /booking</span></h2>
+    <div class="grid2">
+      <div class="row"><label>출발 시각</label><input id="start" type="datetime-local" /></div>
+      <div class="row"><label>종료 시각</label><input id="end" type="datetime-local" /></div>
     </div>
-    <div class="row">
-      <label for="end">종료 시간</label>
-      <input id="end" type="datetime-local" />
+    <div class="row"><label>출발지 주소</label><input id="from" type="text" placeholder="서울시 …" /></div>
+    <div class="row"><label>도착지 주소</label><input id="to" type="text" placeholder="서울시 …" /></div>
+    <div class="row"><label>왕복 여부</label>
+      <select id="roundTrip">
+        <option value="false">편도</option>
+        <option value="true">왕복</option>
+      </select>
     </div>
-    <div class="row">
-      <label for="dep">출발지</label>
-      <input id="dep" type="text" placeholder="서울시 ○○구 ○○로 123" />
+    <div class="row"><label>보조 유형</label>
+      <select id="assist">
+        <option value="guide">길안내 및 이동보조</option>
+        <option value="desk">접수 및 행정보조</option>
+        <option value="shop">장보기 보조</option>
+        <option value="other">기타</option>
+      </select>
     </div>
-    <div class="row">
-      <label for="dest">도착지</label>
-      <input id="dest" type="text" placeholder="서울시 ○○구 ○○로 456" />
-    </div>
-    <div class="row">
-      <label>왕복 여부</label>
-      <span class="inline"><input id="round" type="checkbox" /> <span>왕복</span></span>
-    </div>
-    <div class="row" style="align-items:start;">
-      <label>보조 유형</label>
-      <fieldset style="width:100%">
-        <legend>assistanceType</legend>
-        <div><label class="inline"><input type="radio" name="assist" value="길안내및 이동보조" checked /> 길안내및 이동보조</label></div>
-        <div><label class="inline"><input type="radio" name="assist" value="접수및행정보조" /> 접수및행정보조</label></div>
-        <div><label class="inline"><input type="radio" name="assist" value="장보기 보조" /> 장보기 보조</label></div>
-        <div><label class="inline"><input type="radio" name="assist" value="기타" /> 기타</label></div>
-      </fieldset>
-    </div>
-    <div class="row" style="align-items:start;">
-      <label for="req">추가 요청사항</label>
-      <textarea id="req" rows="3" placeholder="휠체어 승하차 도움 필요 등"></textarea>
-    </div>
-
-    <div class="actions">
-      <button id="send">예약 생성 요청 보내기</button>
+    <div class="row"><label>추가 요청</label><textarea id="reqs" placeholder="특이사항 작성"></textarea></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="sendCreate">예약 생성 요청</button>
+      <button id="fillExample" class="secondary">예시 입력</button>
     </div>
   </div>
 
+  <!-- 예약 삭제: DELETE /booking/:id -->
   <div class="card">
-    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="help"></div></div>
+    <h2>예약 삭제 <span class="muted">DELETE /booking/:id</span></h2>
+    <div class="row"><label>Booking ID</label><input id="delId" type="text" placeholder="삭제할 예약 ID" /></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="sendDelete" class="secondary" style="border-color:#ef4444;color:#991b1b">삭제 요청</button>
+    </div>
+  </div>
+
+  <!-- 로그 -->
+  <div class="card">
+    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="muted"></div></div>
     <pre id="outReq"><code></code></pre>
   </div>
-
   <div class="card">
-    <div class="row"><label>응답</label><div id="status" class="help"></div></div>
+    <div class="row"><label>응답</label><div id="status" class="muted"></div></div>
     <pre id="out"><code></code></pre>
   </div>
 
   <script>
-    // Utilities
-    const $ = (sel) => document.querySelector(sel);
-    const formatDateLocal = (d) => {
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
+    const $ = (s) => document.querySelector(s);
 
-    // Prefill times: now and +1h
-    (function initTimes(){
-      const now = new Date();
-      const plus1 = new Date(now.getTime() + 60 * 60 * 1000);
-      $('#start').value = formatDateLocal(now);
-      $('#end').value = formatDateLocal(plus1);
-    })();
-
-    // Token handling
-    function loadTokenFromLocalStorage(){
+    function loadToken(){
       const t = localStorage.getItem('idToken') || '';
       $('#token').value = t;
       $('#tokenStatus').innerHTML = t
         ? `<span class="ok">localStorage.idToken 로드됨 (${t.slice(0,12)}…)</span>`
-        : `<span class="warn">localStorage.idToken 이 비어 있습니다. Firebase 로그인 후 다시 시도하거나, 위 입력란에 직접 붙여넣고 저장하세요.</span>`;
+        : `idToken 이 비어 있습니다. Firebase 로그인 후 다시 시도하거나, 위 입력란에 직접 저장하세요.`;
     }
-    loadTokenFromLocalStorage();
-    $('#reloadToken').addEventListener('click', loadTokenFromLocalStorage);
-    $('#saveToken').addEventListener('click', () => {
-      const v = $('#token').value.trim();
-      localStorage.setItem('idToken', v);
-      loadTokenFromLocalStorage();
-    });
+    function saveToken(){ localStorage.setItem('idToken', $('#token').value.trim()); loadToken(); }
+    $('#reloadToken').addEventListener('click', loadToken);
+    $('#saveToken').addEventListener('click', saveToken);
+    loadToken();
 
-    function getAssistanceType(){
-      const checked = document.querySelector('input[name="assist"]:checked');
-      return checked ? checked.value : '';
+    (function setDefaults(){
+      const guesses = [
+        'https://ma-y-5usy.onrender.com/api/booking',
+        'http://localhost:3000/api/booking',
+        'http://127.0.0.1:3000/api/booking'
+      ];
+      $('#base').value = guesses[0];
+    })();
+
+    function toISO(dtLocal){
+      if (!dtLocal) return '';
+      // treat local time as local, convert to ISO (UTC)
+      const dt = new Date(dtLocal);
+      return dt.toISOString();
     }
 
-    function buildPayload(){
-      const start = $('#start').value; // "YYYY-MM-DDTHH:mm"
-      const end = $('#end').value;
+    function buildCreateBody(){
       return {
-        startBookingTime: start ? new Date(start).toISOString() : null,
-        endBookingTime: end ? new Date(end).toISOString() : null,
-        departureAddress: $('#dep').value.trim(),
-        destinationAddress: $('#dest').value.trim(),
-        roundTrip: $('#round').checked,
-        assistanceType: getAssistanceType(),
-        additionalRequests: $('#req').value.trim()
+        startBookingTime: toISO($('#start').value),
+        endBookingTime: toISO($('#end').value),
+        departureAddress: $('#from').value.trim(),
+        destinationAddress: $('#to').value.trim(),
+        roundTrip: $('#roundTrip').value === 'true',
+        assistanceType: $('#assist').value,
+        additionalRequests: $('#reqs').value.trim(),
       };
     }
 
-    function previewRequest(url, headers, body){
+    function preview(url, method, headers, body){
       const redactedAuth = headers.Authorization ? headers.Authorization.replace(/Bearer\s+([A-Za-z0-9-_]+)\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/, 'Bearer $1.***.***') : '';
       const h = {...headers, Authorization: redactedAuth };
-      $('#reqPreview').textContent = `${url}`;
-      $('#outReq').textContent = JSON.stringify({ method: 'POST', url, headers: h, body }, null, 2);
+      $('#reqPreview').textContent = `${method} ${url}`;
+      $('#outReq').textContent = JSON.stringify({ method, url, headers: h, body }, null, 2);
     }
 
-    async function send(){
-      const url = $('#endpoint').value.trim();
-      const idToken = $('#token').value.trim();
-      if (!url){
-        alert('API Endpoint 를 입력해 주세요.');
-        return;
-      }
-      if (!idToken){
-        if (!confirm('idToken 이 비어 있습니다. 토큰 없이 시도할까요?')) return;
-      }
-
-      const headers = { 'Content-Type': 'application/json' };
-      if (idToken) headers['Authorization'] = `Bearer ${idToken}`; // verifyFirebaseToken 이 일반적으로 기대하는 형태
-      const body = buildPayload();
-      previewRequest(url, headers, body);
-
+    async function doFetch(url, options){
       $('#status').textContent = '요청 중…';
       $('#out').textContent = '';
-
-      try {
-        const resp = await fetch(url, {
-          method: 'POST',
-          mode: 'cors',
-          credentials: 'include', // 세션/쿠키 갱신 반영
-          headers,
-          body: JSON.stringify(body)
-        });
-
+      try{
+        const resp = await fetch(url, options);
         const text = await resp.text();
         let parsed; try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
         $('#status').innerHTML = `HTTP <strong>${resp.status}</strong> ${resp.ok ? '<span class="ok">OK</span>' : '<span class="err">ERROR</span>'}`;
-
-        const usefulHeaders = {};
-        resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
-
-        $('#out').textContent = JSON.stringify({
-          status: resp.status,
-          ok: resp.ok,
-          headers: usefulHeaders,
-          data: parsed
-        }, null, 2);
-      } catch (e){
+        const usefulHeaders = {}; resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
+        $('#out').textContent = JSON.stringify({ status: resp.status, ok: resp.ok, headers: usefulHeaders, data: parsed }, null, 2);
+      }catch(e){
         $('#status').innerHTML = '<span class="err">네트워크 에러</span>';
         $('#out').textContent = String(e);
       }
     }
 
-    // Defaults and quick fills
-    (function guessDefaultEndpoint(){
-      const loc = window.location.origin;
-      const guesses = [
-        `${loc.replace('github.io','onrender.com')}/api/booking`,
-        `${loc}/api/booking`,
-        'https://ma-y-5usy.onrender.com/api/booking',
-        'http://localhost:3000/api/booking',
-        'http://127.0.0.1:3000/api/booking'
-      ];
-      // Choose the first that looks like a real URL (all are); set a common default
-      $('#endpoint').value = guesses[2];
-    })();
+    // 예시 채우기
+    $('#fillExample').addEventListener('click', () => {
+      const now = new Date();
+      const start = new Date(now.getTime() + 60*60*1000); // +1h
+      const end = new Date(start.getTime() + 60*60*1000); // +2h total
+      const fmt = (d)=> new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      $('#start').value = fmt(start);
+      $('#end').value = fmt(end);
+      $('#from').value = '서울특별시 중구 을지로 12';
+      $('#to').value = '서울특별시 종로구 세종대로 1';
+      $('#roundTrip').value = 'false';
+      $('#assist').value = 'guide';
+      $('#reqs').value = '휠체어 보조 필요';
+    });
 
-    $('#send').addEventListener('click', send);
+    // 생성 전송
+    $('#sendCreate').addEventListener('click', async () => {
+      const base = $('#base').value.trim();
+      const idToken = $('#token').value.trim();
+      if (!base) return alert('API Base를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다.');
+
+      const url = base.replace(/\/$/, '');
+      const body = buildCreateBody();
+
+      // 간단 검증
+      if (!body.startBookingTime || !body.endBookingTime) return alert('시작/종료 시각을 입력하세요.');
+      if (!body.departureAddress || !body.destinationAddress) return alert('출발지/도착지 주소를 입력하세요.');
+
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` };
+      preview(url, 'POST', headers, body);
+      await doFetch(url, { method: 'POST', mode: 'cors', credentials: 'include', headers, body: JSON.stringify(body) });
+    });
+
+    // 삭제 전송
+    $('#sendDelete').addEventListener('click', async () => {
+      const base = $('#base').value.trim();
+      const idToken = $('#token').value.trim();
+      const id = $('#delId').value.trim();
+      if (!base || !id) return alert('API Base와 Booking ID를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다.');
+      const url = `${base.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+      const headers = { 'Authorization': `Bearer ${idToken}` };
+      preview(url, 'DELETE', headers);
+      await doFetch(url, { method: 'DELETE', mode: 'cors', credentials: 'include', headers });
+    });
   </script>
 </body>
 </html>
