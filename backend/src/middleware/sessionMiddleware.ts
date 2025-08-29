@@ -31,7 +31,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     req.cookies.sessionId = sessionId;
     sessionRef = await db.collection("sessions").doc(sessionId);
     doc = await sessionRef.get();
-    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: isProduction ? "none" : "lax" });
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: "none" });
   }
 
   req.sessionData= doc.data();
