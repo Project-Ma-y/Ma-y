@@ -28,7 +28,7 @@ const firebaseConfig = {
 
 
 // Render Secret Files 에 올린 service account json 파일
-const serviceAccountPath = "/etc/secrets/ma-y-b1fa6-firebase-adminsdk-fbsvc-e87a6ba32e.json";
+const serviceAccountPath = "/etc/secrets/service-account-file.json";
 const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
 
 if (process.env.HOST) {
