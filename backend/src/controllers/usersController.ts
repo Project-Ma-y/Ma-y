@@ -327,7 +327,7 @@ export const addFamily = async (req: Request, res: Response) => {
     
     //본인 정보 불러와서 기존 가족에 정보 더하기
     const user = await getUserByUIDService(uid);
-    let registeredFamily = [...(user.registeredFamily), payload];
+    let registeredFamily = [...(user.registeredFamily), payload.registeredFamily];
 
     await updateUserServiceUID(uid, { registeredFamily });
 
