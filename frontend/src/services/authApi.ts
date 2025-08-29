@@ -52,7 +52,7 @@ export const fetchUserProfile = async () => {
   if (!token) {
     throw new Error("No authentication token found.");
   }
-  const url = `${BASE_URL}${ENDPOINTS.profile}`;
+  const url = `${BASE_URL}${ENDPOINTS.me}`; 
   const response = await axios.get<UserProfile>(url, {
     headers: {
       Authorization: `Bearer ${token}`,

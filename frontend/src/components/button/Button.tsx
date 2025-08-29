@@ -4,7 +4,7 @@ import React from "react";
 interface ButtonProps {
   type?: "default" | "close" | "primary" | "secondary";
   buttonName?: string;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   aria?: string;
   disabled?: boolean;
   bgColor?: string;   // (옵션) 외부에서 강제 색상 오버라이드

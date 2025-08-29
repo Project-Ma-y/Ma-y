@@ -1,10 +1,9 @@
-import { useUIStore } from '@/store/uiStore'
+import { useUIStore } from "@/store/uiStore";
 
-export function useToast() {
-  const push = useUIStore((s) => s.pushToast)
+export const useToast = () => {
+  const push = useUIStore((s: any) => s?.pushToast || s?.showToast || s?.toast);
+
   return {
-    success: (message: string, title?: string) => push({ message, title }),
-    error: (message: string, title?: string) => push({ message, title }),
-    info: (message: string, title?: string) => push({ message, title }),
-  }
-}
+    show: (msg: string) => push?.({ message: msg }),
+  };
+};

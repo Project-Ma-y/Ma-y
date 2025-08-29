@@ -1,19 +1,12 @@
-# /netlify.toml
 [build]
-  base    = "frontend"           # 👈 하위 폴더(프론트엔드)로 이동
+  base    = "frontend"
   command = "npm ci && npm run build"
   publish = "dist"
 
-# SPA 라우팅 (react-router)
+[build.environment]
+  NODE_VERSION = "20"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-# (선택) 백엔드 API 프록시 – 실제 도메인에 맞게 바꿔
-# 프론트에서 /api/* 로 호출하면 백엔드로 전달됨
-[[redirects]]
-  from = "/api/*"
-  to = "https://YOUR-BACKEND-DOMAIN.com/:splat"
-  status = 200
-  force = true

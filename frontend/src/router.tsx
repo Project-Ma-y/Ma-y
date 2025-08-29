@@ -12,7 +12,7 @@ const Login = lazy(() => import("@/pages/Login"));
 const SignUp = lazy(() => import("@/pages/SignUp"));
 const Home = lazy(() => import("@/pages/Home"));
 const MyReservations = lazy(() => import("@/pages/MyReservation"));
-const MyPage = lazy(() => import("@/pages/Mypage"));
+const MyPage = lazy(() => import("@/pages/MyPage"));
 const ReservationDetail = lazy(() => import("@/pages/ReservationDetail"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
 const MyPageEdit = lazy(() => import("@/pages/MyPageEdit"));

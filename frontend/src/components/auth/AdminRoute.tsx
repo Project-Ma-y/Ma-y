@@ -25,7 +25,7 @@ const AccessDeniedModal = ({ onConfirm }: { onConfirm: () => void }) => {
 };
 
 export function AdminRoute() {
-  const { isLoggedIn, isAdmin, setLoginStatus } = useAuthStore();
+  const { isLoggedIn, isAdmin } = useAuthStore();
   const setAuth = useAuthStore(s => s.setAuth); // ✅ 올바른 함수 이름으로 변경
   const [loading, setLoading] = useState(true);
   const [showAccessDeniedModal, setShowAccessDeniedModal] = useState(false);
@@ -68,7 +68,7 @@ export function AdminRoute() {
   };
 
   if (loading) {
-    return <Spinner fullScreen />;
+    return <Spinner size={48} />;
   }
 
   // ✅ isAdmin이 true일 때 AdminPage 컴포넌트를 렌더링

@@ -1,5 +1,5 @@
 // src/components/reservation/Step1_UserSelection.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/button/Button";
 import { useUserStore } from "@/store/userStore";
 
@@ -9,9 +9,13 @@ interface Step1Props {
   onPrev: () => void;
 }
 
+// 전화번호 정규화 유틸
+const getPhone = (v: any) =>
+  v?.phone ?? v?.phoneNumber ?? v?.contact?.phone ?? v?.contact ?? "";
+
 const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev }) => {
   const { profile } = useUserStore();
-
+  const isSeniorUser = profile?.customerType === "senior";
   const parents: any[] = useMemo(() => profile?.registeredFamily ?? [], [profile]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
@@ -19,33 +23,72 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
     return typeof idx === "number" && idx >= 0 && idx < parents.length ? idx : null;
   });
 
+  // ✅ onNext 중복 호출 방지 가드
+  const advancedRef = useRef(false);
+  const safeNext = (payload: any) => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    onNext(payload);
+  };
+
+  // ✅ 시니어 사용자: 본인 스냅샷으로 한 번만 자동 진행
   useEffect(() => {
-    if (parents.length === 0) {
-      onNext({ selectedUserIndex: null, selectedUser: null });
-    }
-  }, [parents.length, onNext]);
+    if (!profile || !isSeniorUser) return;
+    safeNext({
+      selectedUserIndex: 0,
+      selectedUser: {
+        name: profile.nickname || profile.name || "이름없음",
+        phone: getPhone(profile),
+        relation: "본인",
+        birthdate: profile.birthdate || "",
+      },
+      isSelf: true,
+      // gotoStep: 2, // 부모가 지원하면 사용
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSeniorUser, profile]);
 
   const handleSelect = (idx: number) => setSelectedIndex(idx);
 
   const handleNext = () => {
     if (selectedIndex === null) return;
     const picked = parents[selectedIndex];
-
-    // 🔹 Step5에서 그대로 쓸 수 있는 스냅샷 형태로 저장
-    const snapshot = {
-      name: picked.nickname || picked.name || "이름없음",
-      phone: picked.phone || "",
-      relation: picked.relation || "관계 미입력",
-      // 필요하면 표시 전용 추가 필드
-      birthdate: picked.birthdate || "",
-      // raw도 함께 보관하고 싶으면 아래 주석 해제
-      // raw: picked,
-    };
-
-    onNext({ selectedUserIndex: selectedIndex, selectedUser: snapshot });
+    safeNext({
+      selectedUserIndex: selectedIndex,
+      selectedUser: {
+        name: picked?.nickname || picked?.name || "이름없음",
+        phone: getPhone(picked),
+        relation: picked?.relation || "관계 미입력",
+        birthdate: picked?.birthdate || "",
+      },
+      // gotoStep: 2, // 부모가 지원하면 사용
+    });
   };
 
-  if (parents.length === 0) return null;
+  // ✅ 가족(시니어) 0명: 자동 진행하지 말고 UI 노출 + 다음 버튼으로 단일 진행
+  if (!isSeniorUser && parents.length === 0) {
+    return (
+      <div className="p-4 space-y-4">
+        <h2 className="text-xl font-bold">동행이 필요한 분 선택</h2>
+        <p className="text-sm text-gray-600">등록된 시니어가 없습니다.</p>
+        <div className="flex justify-between p-4 bg-gray-50 rounded-lg">
+          <Button onClick={onPrev} buttonName="이전" type="secondary" />
+          <Button
+            onClick={() =>
+              safeNext({ selectedUserIndex: null, selectedUser: null /*, gotoStep: 2*/ })
+            }
+            buttonName="다음"
+            type="primary"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 시니어는 자동 진행 안내만 (위 useEffect에서 한 번만 onNext)
+  if (isSeniorUser) {
+    return <div className="p-6 text-center text-gray-600">본인 정보 확인 중입니다...</div>;
+  }
 
   return (
     <div className="p-0 space-y-4">
@@ -56,12 +99,12 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
             const active = selectedIndex === idx;
             return (
               <button
-                key={`${p.phoneNumber || "no-phone"}-${idx}`}
+                key={`${getPhone(p) || "no-phone"}-${idx}`}
                 onClick={() => handleSelect(idx)}
                 className={`w-full text-left rounded-lg border-2 p-3 ${
                   active ? "border-blue-500" : "border-gray-200"
                 } hover:border-blue-400 transition-colors`}
-                aria-label={`${p.nickname || p.name || "이름없음"} 선택`}
+                aria-label={`${p?.nickname || p?.name || "이름없음"} 선택`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -72,11 +115,13 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
                     </span>
                     <div>
                       <div className="font-bold flex items-center gap-1">
-                        {p.nickname || p.name || "이름없음"}
-                        <span className="text-xs text-gray-500 font-normal">m</span>
+                        {p?.nickname || p?.name || "이름없음"}
+                        <span className="text-xs text-gray-500 font-normal">
+                          {p?.gender === "male" ? "M" : p?.gender === "female" ? "F" : ""}
+                        </span>
                       </div>
                       <div className="text-sm text-gray-500">
-                        {(p.relation || "관계 미입력")} | {(p.phoneNumber || "전화번호 없음")}
+                        {(p?.relation || "관계 미입력")} | {(getPhone(p) || "전화번호 없음")}
                       </div>
                     </div>
                   </div>
@@ -93,7 +138,7 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
       </div>
 
       <div className="flex justify-between p-4 bg-gray-50">
-        <Button onClick={() => console.log("수정 기능 구현 필요")} buttonName="수정하기" type="secondary" />
+        <Button onClick={onPrev} buttonName="이전" type="secondary" />
         <Button onClick={handleNext} buttonName="다음" type="primary" disabled={selectedIndex === null} />
       </div>
     </div>

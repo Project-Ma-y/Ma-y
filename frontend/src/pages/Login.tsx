@@ -6,7 +6,6 @@ import Input from "@/components/Input";
 import Button from "@/components/button/Button";
 import { loginWithFirebase } from "@/services/firebaseAuth";
 import { useAuthStore } from "@/store/authStore";
-import { pingServer } from "@/services/adminTest";
 import React from 'react';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth as firebaseAuth } from "@/services/firebase";
@@ -21,26 +20,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [serverResp, setServerResp] = useState("");
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-      if (user) {
-        try {
-          const idToken = await user.getIdToken();
-          setAuth({ uid: user.uid, idToken });
-          // pingServer 함수는 토큰을 헤더에 담아 호출해야 합니다.
-          // 현재 코드에서는 pingServer 함수가 토큰을 어떻게 사용하는지 알 수 없으므로,
-          // 만약 pingServer가 토큰을 필요로 한다면 해당 함수를 수정해야 합니다.
-          const data = await pingServer();
-          setServerResp(JSON.stringify(data, null, 2));
-        } catch (e) {
-          setServerResp(`서버 호출 실패: ${e?.response?.data?.message ?? e?.message}`);
-        }
-        nav("/home");
-      }
-    });
-
-    return () => unsubscribe();
-  }, [setAuth, nav]);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

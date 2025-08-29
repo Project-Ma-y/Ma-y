@@ -237,8 +237,8 @@ export default function ParentsManage() {
     <MainLayout headerProps={{ title: "보호 대상자 관리", showBack: true }} showNav={true}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">보호 대상자 생성/수정/삭제</h3>
-          <Button type="secondary" buttonName="행 추가 (+)" onClick={addRow} />
+          <h3 className="text-sm font-semibold text-gray-700">나의 가족 관리</h3>
+          <Button type="secondary" buttonName="추가" onClick={addRow} />
         </div>
 
         {forms.map((f, idx) => {
@@ -251,22 +251,22 @@ export default function ParentsManage() {
               <div className="flex items-center justify-between">
                 <div className="text-sm font-bold">
                   {f.name || "이름 미지정"}
-                  {f.mid ? (
+                  {/* {f.mid ? (
                     <span className="ml-2 text-[10px] text-gray-400">mid: {f.mid}</span>
                   ) : (
                     <span className="ml-2 text-[10px] text-red-400">mid 없음(생성 필요)</span>
-                  )}
+                  )} */}
                   {status === "ok" && <span className="ml-2 text-xs text-green-600">완료</span>}
                   {status === "saving" && <span className="ml-2 text-xs text-gray-500">전송 중…</span>}
                   {status === "deleting" && <span className="ml-2 text-xs text-gray-500">삭제 중…</span>}
                 </div>
-                <button
+                {/* <button
                   className="text-xs text-red-500 font-semibold"
                   onClick={() => removeRowLocal(idx)}
                   disabled={status === "saving" || status === "deleting"}
                 >
                   행 제거(로컬)
-                </button>
+                </button> */}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -277,7 +277,7 @@ export default function ParentsManage() {
                   placeholder="홍길동"
                 />
                 <Input
-                  label="전화번호(숫자만)"
+                  label="전화번호"
                   value={f.phone}
                   onChange={(e) => updateField(idx, "phone", e.target.value)}
                   placeholder="01012345678"
@@ -321,7 +321,7 @@ export default function ParentsManage() {
                 {!forms[idx].mid ? (
                   <Button
                     type="secondary"
-                    buttonName={status === "saving" ? "생성 중..." : "이 행 생성"}
+                    buttonName={status === "saving" ? "추가 중" : "추가하기"}
                     onClick={() => createOne(idx)}
                     disabled={status === "saving" || status === "deleting"}
                   />
@@ -329,13 +329,13 @@ export default function ParentsManage() {
                   <>
                     <Button
                       type="secondary"
-                      buttonName={status === "saving" ? "저장 중..." : "이 행 업데이트"}
+                      buttonName={status === "saving" ? "저장 중..." : "추가하기"}
                       onClick={() => updateOne(idx)}
                       disabled={status === "saving" || status === "deleting"}
                     />
                     <Button
                       type="secondary"
-                      buttonName={status === "deleting" ? "삭제 중..." : "이 행 삭제"}
+                      buttonName={status === "deleting" ? "삭제 중..." : "삭제하기"}
                       onClick={() => deleteOneRow(idx)}
                       disabled={status === "saving" || status === "deleting"}
                     />
@@ -349,7 +349,7 @@ export default function ParentsManage() {
         <div className="pb-4">
           <Button
             type="primary"
-            buttonName={savingAll ? "전체 저장 중..." : "전체 저장"}
+            buttonName={savingAll ? "저장 중..." : "저장하기"}
             className="w-full h-12"
             onClick={saveAll}
             disabled={savingAll}

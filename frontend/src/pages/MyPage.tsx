@@ -192,29 +192,26 @@ export default function MyPage() {
 
     // 사용자 이름은 항상 사용자 본인의 이름
     const profileName = profile.name;
+    // ✅ 역할 판별: 보호자/시니어
+    const isFamilyUser = profile.customerType === "family";
+    const isSeniorUser = profile.customerType === "senior";
+
+     const seniorsList: any[] = Array.isArray(profile.registeredFamily)
+      ? profile.registeredFamily
+      : [];
+    const hasSeniors = seniorsList.length > 0;
+
     const isGuardian =
       profile.role === "guardian" || profile.customerType === "family";
-
-    // 보호대상자(가족) 리스트
-    const familyList: any[] = Array.isArray(profile.registeredFamily) ? profile.registeredFamily : [];
-    const hasRegisteredFamily = familyList.length > 0;
 
     return (
       <>
         <Card className="flex items-center gap-4 p-4">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200">
             {profile.profileImage ? (
-              <img
-                src={profile.profileImage}
-                alt="Profile"
-                className="h-16 w-16 rounded-full"
-              />
+              <img src={profile.profileImage} alt="Profile" className="h-16 w-16 rounded-full" />
             ) : (
-              <svg
-                className="h-10 w-10 text-gray-500"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
+              <svg className="h-10 w-10 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
               </svg>
             )}
@@ -222,41 +219,33 @@ export default function MyPage() {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-bold">{profileName}</h3>
+              {/* ✅ 뱃지 문구 수정 */}
               <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">
-                {isGuardian ? "보호자" : "회원"}
+                {isFamilyUser ? "보호자" : "시니어"}
               </span>
-              <Link
-                to="/profile/edit"
-                className="flex items-center text-gray-500 ml-auto cursor-pointer text-sm"
-              >
+              <Link to="/profile/edit" className="flex items-center text-gray-500 ml-auto cursor-pointer text-sm">
                 <span className="mr-1">수정하기</span>
-                <svg
-                  className="h-5 w-5 text-gray-500"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
                 </svg>
               </Link>
             </div>
             <div className="text-sm text-gray-500 mt-1">{profile.phone}</div>
-            <div className="text-xs text-gray-500 mt-1">
-              {hasRegisteredFamily
-                ? `보호 대상자 - ${familyList.length}명`
-                : "보호 대상자 없음"}
-            </div>
+            {/* 하단 한줄 안내는 유지/원하면 문구도 시니어로 바꿔도 됨 */}
+            {isFamilyUser && (
+              <div className="text-xs text-gray-500 mt-1">
+                {hasSeniors ? `시니어 - ${seniorsList.length}명` : "등록한 가족이 없습니다."}
+              </div>
+            )}
           </div>
         </Card>
 
-        {hasRegisteredFamily && (
+        {/* ✅ 시니어 섹션: 보호자에게만 보이게, 0명이어도 섹션 표시 */}
+        {isFamilyUser && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold text-gray-700">
-                보호 대상자 ({familyList.length}명)
+                시니어 ({seniorsList.length}명)
               </div>
               <button onClick={openParentsManage}>
                 <svg
@@ -273,40 +262,35 @@ export default function MyPage() {
               </button>
             </div>
 
-            {familyList.map((parent: any, index: number) => (
-              <Link to="#" key={index}>
-                <Card className="flex items-center justify-between p-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                      <svg
-                        className="h-5 w-5 text-gray-500"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
-                        <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                      </svg>
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="truncate text-sm font-bold">
-                          {parent.name}
-                        </span>
-                        <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-primary)]">
-                          {parent.gender === "male"
-                            ? "M"
-                            : parent.gender === "female"
-                            ? "F"
-                            : ""}
-                        </span>
-                      </div>
-                      <div className="truncate text-xs text-gray-500">
-                        {parent.phone}
+            {hasSeniors ? (
+              seniorsList.map((senior: any, index: number) => (
+                <Link to="#" key={index}>
+                  <Card className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                        <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="truncate text-sm font-bold">{senior.name}</span>
+                          <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-primary)]">
+                            {senior.gender === "male" ? "M" : senior.gender === "female" ? "F" : ""}
+                          </span>
+                        </div>
+                        <div className="truncate text-xs text-gray-500">{senior.phone}</div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              // ✅ 0명일 때도 섹션 내 안내 카드 표시 (문구 유지)
+              <Card className="p-4">
+                <div className="text-sm text-gray-600">등록한 가족이 없습니다.</div>
+              </Card>
+            )}
           </div>
         )}
 

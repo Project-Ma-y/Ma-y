@@ -4,15 +4,14 @@ import { useUserStore } from "@/store/userStore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-            apiKey: "AIzaSyALislKfX7MQeh1IteqWiiaxYGJ_KrNZN4",
-            authDomain: "ma-y-b1fa6.firebaseapp.com",
-            databaseURL: "https://ma-y-b1fa6-default-rtdb.firebaseio.com",
-            projectId: "ma-y-b1fa6",
-            storageBucket: "ma-y-b1fa6.firebasestorage.app",
-            messagingSenderId: "48645617538",
-            appId: "1:48645617538:web:23d556cdd2c5b223b2019b",
-            measurementId: "G-8CPE7B7PLN",
-        };
+  apiKey: "AIzaSyAaHhbv_xlkIwgp8BDI4ekkmRBl9bLI_pw",
+  authDomain: "projectmay-358b7.firebaseapp.com",
+  projectId: "projectmay-358b7",
+  storageBucket: "projectmay-358b7.firebasestorage.app",
+  messagingSenderId: "527237934658",
+  appId: "1:527237934658:web:a6351a12ea9f9de13007db",
+  measurementId: "G-VQWRV48PQF"
+};
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig); // 'export' 키워드 추가
