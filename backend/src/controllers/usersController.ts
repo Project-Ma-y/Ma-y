@@ -334,8 +334,6 @@ export const addFamily = async (req: Request, res: Response) => {
 
     await updateUserServiceUID(uid, { registeredFamily });
 
-    await updateUserServiceUID(uid, { registeredFamily });
-
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;

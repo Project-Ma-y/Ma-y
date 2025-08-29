@@ -5,7 +5,8 @@ export const verifyFirebaseToken = async (req: any, res: any, next: any) => {
   const idToken = req.headers.authorization?.split('Bearer ')[1];
 
   if (!idToken) {
-    //return res.status(401).send('Authorization token missing');
+    res.status(401).send('Authorization token missing');
+    return;
   }
 
   try {

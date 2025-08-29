@@ -50,7 +50,8 @@ app.use(
         callback(new Error("Not allowed by CORS")); // ❌ 차단
       }
     },
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Authorization','Content-Type'],
   })
 );
 app.use("/api/booking", bookingsRouter);
