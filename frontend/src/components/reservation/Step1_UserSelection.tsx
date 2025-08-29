@@ -3,20 +3,27 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/button/Button";
 import { useUserStore } from "@/store/userStore";
 
+// 전화번호 정규화 유틸
+const getPhone = (v: any) =>
+  v?.phone ?? v?.phoneNumber ?? v?.contact?.phone ?? v?.contact ?? "";
+
+// ✅ 백엔드에 seniorId로 보낼 memberId 추출 유틸 (백엔드 스키마 변동 대비)
+const getMemberId = (v: any) =>
+  v?.memberId ?? v?.member_id ?? v?.id ?? v?.uid ?? "";
+
+// Props 타입 (필요 시 프로젝트 공용 타입으로 교체)
 interface Step1Props {
   formData: any;
   onNext: (data: any) => void;
   onPrev: () => void;
 }
 
-// 전화번호 정규화 유틸
-const getPhone = (v: any) =>
-  v?.phone ?? v?.phoneNumber ?? v?.contact?.phone ?? v?.contact ?? "";
-
 const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev }) => {
   const { profile } = useUserStore();
   const isSeniorUser = profile?.customerType === "senior";
-  const parents: any[] = useMemo(() => profile?.registeredFamily ?? [], [profile]);
+
+  // 등록된 가족(시니어) 목록
+  const parents = useMemo(() => profile?.registeredFamily ?? [], [profile]);
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
     const idx = formData?.selectedUserIndex;
@@ -32,8 +39,10 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
   };
 
   // ✅ 시니어 사용자: 본인 스냅샷으로 한 번만 자동 진행
+  //    - seniorId는 빈 문자열("")로 전달 → 백엔드에서 신청자 본인 uid로 처리
   useEffect(() => {
     if (!profile || !isSeniorUser) return;
+
     safeNext({
       selectedUserIndex: 0,
       selectedUser: {
@@ -43,16 +52,19 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
         birthdate: profile.birthdate || "",
       },
       isSelf: true,
-      // gotoStep: 2, // 부모가 지원하면 사용
+      seniorId: "", // ← 본인 예약: 아무거나/빈값 → 서버가 uid로 대체
+      // gotoStep: 2,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSeniorUser, profile]);
 
   const handleSelect = (idx: number) => setSelectedIndex(idx);
 
+  // ✅ 가족(보호자) 예약: 선택된 가족의 memberId를 seniorId로 전달
   const handleNext = () => {
     if (selectedIndex === null) return;
     const picked = parents[selectedIndex];
+
     safeNext({
       selectedUserIndex: selectedIndex,
       selectedUser: {
@@ -61,11 +73,14 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
         relation: picked?.relation || "관계 미입력",
         birthdate: picked?.birthdate || "",
       },
-      // gotoStep: 2, // 부모가 지원하면 사용
+      isSelf: false,
+      seniorId: String(getMemberId(picked) ?? ""), // ← 가족의 memberId 사용
+      // gotoStep: 2,
     });
   };
 
   // ✅ 가족(시니어) 0명: 자동 진행하지 말고 UI 노출 + 다음 버튼으로 단일 진행
+  //    - seniorId는 빈 문자열("")로 전달 → 백엔드에서 신청자 본인 uid로 처리
   if (!isSeniorUser && parents.length === 0) {
     return (
       <div className="p-4 space-y-4">
@@ -75,7 +90,12 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
           <Button onClick={onPrev} buttonName="이전" type="secondary" />
           <Button
             onClick={() =>
-              safeNext({ selectedUserIndex: null, selectedUser: null /*, gotoStep: 2*/ })
+              safeNext({
+                selectedUserIndex: null,
+                selectedUser: null,
+                isSelf: true,
+                seniorId: "", // ← 빈값 전달(본인 처리)
+              })
             }
             buttonName="다음"
             type="primary"
@@ -95,7 +115,7 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
       <div className="p-4">
         <h2 className="text-xl font-bold mb-4">동행이 필요한 분은 누구인가요?</h2>
         <div className="space-y-3">
-          {parents.map((p, idx) => {
+          {parents.map((p: any, idx: number) => {
             const active = selectedIndex === idx;
             return (
               <button
@@ -121,10 +141,11 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
                         </span>
                       </div>
                       <div className="text-sm text-gray-500">
-                        {(p?.relation || "관계 미입력")} | {(getPhone(p) || "전화번호 없음")}
+                        {(p?.relation || "관계 미입력") + " | " + (getPhone(p) || "전화번호 없음")}
                       </div>
                     </div>
                   </div>
+
                   {active && (
                     <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M10 2l2.39 1.2 2.67-.36 1.46 2.3 2.48 1.1-.5 2.64.5 2.64-2.48 1.1-1.46 2.3-2.67-.36L10 18l-2.39-1.2-2.67.36-1.46-2.3L1 13.56l.5-2.64L1 8.28l2.48-1.1 1.46-2.3 2.67.36L10 2zm-1 11l5-5-1.41-1.41L9 9.17 7.41 7.59 6 9l3 4z" />
@@ -139,7 +160,12 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
 
       <div className="flex justify-between p-4 bg-gray-50">
         <Button onClick={onPrev} buttonName="이전" type="secondary" />
-        <Button onClick={handleNext} buttonName="다음" type="primary" disabled={selectedIndex === null} />
+        <Button
+          onClick={handleNext}
+          buttonName="다음"
+          type="primary"
+          disabled={selectedIndex === null}
+        />
       </div>
     </div>
   );

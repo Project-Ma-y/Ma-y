@@ -1,24 +1,18 @@
 // src/services/bookingApi.ts
 import { api } from "@/lib/api";
 
-export type CreateBookingPayload = {
-  startBookingTime: string;
-  endBookingTime: string;
-  departureAddress: string;
-  destinationAddress: string;
-  roundTrip: boolean;
-  assistanceType: "guide" | "admin" | "shopping" | "other";
-  additionalRequests?: string;
+export const createBooking = async (payload: any) => {
+  try {
+    const { data } = await api.post("/booking", payload);
+    return data;
+  } catch (e: any) {
+    const res = e?.response;
+    console.group("[createBooking error]");
+    console.log("status:", res?.status);
+    console.log("statusText:", res?.statusText);
+    console.log("headers:", res?.headers);
+    console.log("data:", res?.data); // ← 서버가 구체 메시지를 주면 여기에 옴
+    console.groupEnd();
+    throw e;
+  }
 };
-
-export async function createBooking(payload: CreateBookingPayload) {
-  // /api 프록시 경유 → 동일 출처, 쿠키 자동, 토큰 자동
-  const { data } = await api.post("/booking", payload);
-  // 기대 응답: { bookingId }
-  return data as { bookingId: string };
-}
-
-export async function getMyBookings() {
-  const { data } = await api.get("/booking/my");
-  return data;
-}

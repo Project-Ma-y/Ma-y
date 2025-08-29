@@ -73,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ type = "default", title = "" }) => {
         {type === "default" && (
           <div className="flex items-center">
             <span className="rounded-md px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]">
-              <img src="/public/assets/logo/logo.png" className="w-12" alt="" />
+              <img src="/assets/logo/logo.png" className="w-12" alt="" />
             </span>
           </div>
         )}

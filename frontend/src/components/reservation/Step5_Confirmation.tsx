@@ -41,6 +41,10 @@ const mapAssistance = (types: string[] = []) => {
   return types.map(t => label[t] || t).join(", ");
 };
 
+// ✅ id 유틸
+const getMemberId = (v: any) =>
+  v?.memberId ?? v?.member_id ?? v?.id ?? v?.uid ?? "";
+
 const Step5_Confirmation: React.FC<Step5Props> = ({ formData, onNext, onPrev, setStep }) => {
   const { profile } = useUserStore();
   const navigate = useNavigate();
@@ -56,6 +60,7 @@ const Step5_Confirmation: React.FC<Step5Props> = ({ formData, onNext, onPrev, se
 
   // Step1에서 저장한 스냅샷 사용
   const selectedUser = formData?.selectedUser || null;
+  const isSelf = !!formData?.isSelf;
 
   const dateLine = formatYMDWeek(formData?.selectedDate);
   const timeLine =
@@ -63,42 +68,56 @@ const Step5_Confirmation: React.FC<Step5Props> = ({ formData, onNext, onPrev, se
       ? `${formData.startTime} ~ ${formData.endTime}`
       : "";
 
-        // 예약 제출 핸들러
+  // ✅ seniorId 결정 로직
+  // - 본인 예약: "" (백엔드가 uid로 대체)
+  // - 가족 예약: Step1에서 넘어온 formData.seniorId 사용, 없으면 selectedUser에서 추출
+  const seniorId: string =
+    isSelf
+      ? ""
+      : (formData?.seniorId ??
+         (selectedUser ? String(getMemberId(selectedUser)) : ""));
+
+  // 예약 제출 핸들러
   const handleReserve = async () => {
-    // formData → 백엔드 스키마 변환
-    const startISO = toISO(formData?.selectedDate, formData?.startTime);
-    const endISO   = toISO(formData?.selectedDate, formData?.endTime);
+   // src/components/reservation/Step5_Confirmation.tsx (발췌)
+const startISO = toISO(formData?.selectedDate, formData?.startTime);
+const endISO   = toISO(formData?.selectedDate, formData?.endTime);
 
-    // assistanceType은 단일 문자열로 보냄(여러 개라면 첫 번째, 없으면 'other')
-    const assistanceType =
-      Array.isArray(formData?.assistanceTypes) && formData.assistanceTypes.length > 0
-        ? formData.assistanceTypes[0]
-        : "other";
+// 필수값 가드
+if (!startISO || !endISO) {
+  console.error("[reserve] invalid time", { startISO, endISO, formData });
+  ui.openModal("reserve-fail");
+  return;
+}
 
-    const payload = {
-      startBookingTime: startISO,
-      endBookingTime: endISO,
-      departureAddress: formData?.departureAddress || "",
-      destinationAddress: formData?.destinationAddress || "",
-      roundTrip: !!formData?.roundTrip,
-      assistanceType,
-      additionalRequests: formData?.additionalRequests || "",
-    };
+const assistanceType = Array.isArray(formData?.assistanceTypes) && formData.assistanceTypes.length > 0
+  ? formData.assistanceTypes[0]
+  : "other";
 
-    const u = getAuth().currentUser;
-    const t = u ? await u.getIdToken() : "";
-    console.debug("[reserve] token head:", t ? t.slice(0, 12) + "…" : "(no user)");
-    console.debug("[reserve] api.baseURL=", api.defaults.baseURL, "withCredentials=", api.defaults.withCredentials);
-    try {
-      const { bookingId } = await createBooking(payload);
-      // 성공 모달
-      ui.openModal("reserve-success");
-      // 필요시 페이지 이동
-      // navigate(`/reservation/${bookingId}`);
-    } catch (e) {
-      console.error("[createBooking error]", e);
-      ui.openModal("reserve-fail");
-    }
+// Step1 반영: 본인이면 "", 가족이면 memberId/ seniorId
+const seniorId = formData?.isSelf ? "" : (formData?.seniorId ?? formData?.selectedUser?.memberId ?? "");
+
+const payload = {
+  startBookingTime: startISO,
+  endBookingTime: endISO,
+  departureAddress: formData?.departureAddress || "",
+  destinationAddress: formData?.destinationAddress || "",
+  roundTrip: !!formData?.roundTrip,
+  assistanceType,
+  additionalRequests: formData?.additionalRequests || "",
+  seniorId,
+};
+
+console.debug("[reserve] payload", payload);
+console.debug("[reserve] api.baseURL", (api.defaults as any).baseURL);
+
+try {
+  const { bookingId } = await createBooking(payload);
+  ui.openModal("reserve-success");
+} catch (e) {
+  ui.openModal("reserve-fail");
+}
+
   };
 
   return (

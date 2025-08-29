@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 
 // Vite proxy로 동일 오리진('/api') 호출 → 쿠키 자동 포함
 export const api = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: { "Content-Type": "application/json", Accept: "application/json" },
 });
 

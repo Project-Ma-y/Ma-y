@@ -19,7 +19,7 @@ export default function Home() {
         <div className="relative h-full bg-gray-200">
           {/* 사진 대신 플레이스홀더 텍스트 */}
           
-            <img src="/public/assets/img/may_1.png" alt="" />
+            <img src="/assets/img/may_1.png" alt="" />
           
 
           
