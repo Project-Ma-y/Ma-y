@@ -68,7 +68,7 @@ const snapshot = await collectionRef
 }
 
 
-export async function updateBookingService(bookingId: string, payload: Partial<BookingPayload>) {
+export async function deleteBookingService(bookingId: string) {
   try {
       if (!bookingId) {
       const error = new Error("bookingId가 존재하지 않습니다");

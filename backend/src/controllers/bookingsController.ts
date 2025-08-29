@@ -1,6 +1,6 @@
 // controllers/bookingController.ts
 import { Request, Response } from "express";
-import { createBookingService, getAllBookingsService, getBookingByIdService, getMyBookingsService, updateBookingService } from "../services/bookingService";
+import { createBookingService, getAllBookingsService, getBookingByIdService, getMyBookingsService, deleteBookingService } from "../services/bookingService";
 import { updateBookingCompletion } from "./sessionsController";
 import { getUserByUIDService } from "../services/usersService";
 import { BookingPayload } from "../interfaces/booking";
@@ -37,7 +37,7 @@ export const createBooking = async (req: Request, res: Response) => {
       roundTrip: req.body.roundTrip,
       assistanceType: req.body.assistanceType,
       additionalRequests: req.body.additionalRequests,
-      userType: userType,
+      userType,
       status: "pending",
 
       price: 0,
@@ -164,7 +164,7 @@ export const updateBooking = async (req: Request, res: Response) => {
     }
 
 
-    const booking = await updateBookingService(bookingId, req.body);
+    const booking = await deleteBookingService(bookingId);
 
     if (!booking) {
       const error: any = new Error("예약을 찾을 수 없습니다.");
@@ -193,7 +193,7 @@ export const deleteBooking = async (req: Request, res: Response) => {
   try {
     const bookingId = req.params.id;
 
-    const booking = await getBookingByIdService(bookingId);
+    const booking = await deleteBookingService(bookingId);
     if (!booking) {
       const error: any = new Error("예약을 찾을 수 없습니다.");
       error.code = 404;
