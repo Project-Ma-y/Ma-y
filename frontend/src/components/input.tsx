@@ -1,10 +1,12 @@
-// src/components/Input.tsx
+// src/components/Input.tsx input-> Input 으로 변경
 import React, { FC, InputHTMLAttributes } from "react";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   helpText?: string;
 }
+
+
 
 const Input: FC<InputProps> = ({ label, helpText, required, ...rest }) => {
   return (
