@@ -19,20 +19,20 @@ export const registerHandler = async (req: Request, res: Response) => {
       throw error;
     }
 
-    const exists = await getUserByIdService(req.body.id);
-    let user;
+    //const exists = await getUserByIdService(req.body.id);
+    const user = await registerUser(req.body);
 
     //기존 DB에 존재하는 지 확인
-    if (exists) {
-      user = await updateUserService({
-        ...req.body,
-        hasSignup: true,
-      });
-    }
-    else {
-      //DB에 등록
-      user = await registerUser(req.body);
-    }
+    // if (exists) {
+    //   user = await updateUserService({
+    //     ...req.body,
+    //     hasSignup: true,
+    //   });
+    // }
+    // else {
+    //   //DB에 등록
+    //   user = await registerUser(req.body);
+    // }
 
     //세션 업데이트
     await updateSignUpCompletion(req, res, user.uid);
@@ -142,10 +142,10 @@ export const registerParent = async (req: Request, res: Response) => {
     }));
 
     // 가족 정보 업데이트
-    await updateUserService({
-      id: family.id,
-      registeredFamily
-    });
+    // await updateUserService({
+    //   id: family.id,
+    //   registeredFamily
+    // });
 
 
     // 시니어용 링크 정보
@@ -157,15 +157,15 @@ export const registerParent = async (req: Request, res: Response) => {
     };
 
     // 부모 문서들에 추가 (비동기 병렬 + async 콜백)
-    await Promise.all(
-      results.map(async (r) => {
-        await updateUserService({
-          id: r.uid,
-          // 스키마가 registeredFamily 라는 배열이라면:
-          registeredFamily: [registeredFamilyForSenior],
-        });
-      })
-    );
+    // await Promise.all(
+    //   results.map(async (r) => {
+    //     await updateUserService({
+    //       id: r.uid,
+    //       // 스키마가 registeredFamily 라는 배열이라면:
+    //       registeredFamily: [registeredFamilyForSenior],
+    //     });
+    //   })
+    // );
 
     res.status(201).json({ message: '등록 성공' });
 

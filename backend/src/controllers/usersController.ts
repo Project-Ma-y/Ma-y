@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getAllUsersService, getUserByUIDService, deleteUserService, updateUserService, updateUserServiceUID, compareUserPassword, getUserByIdService, isSignupUser, updateUserParentServiceUID } from "../services/usersService";
 import { REPLCommand } from "repl";
+import { v4 as uuidv4 } from "uuid";
 
 // 업데이트 가능한 필드
 const UPDATE_ALLOWED_FIELDS = [
@@ -8,8 +9,19 @@ const UPDATE_ALLOWED_FIELDS = [
   "phone",
   "gender",
   "birthdate",
-  "address",
-  "registeredFamily",
+  "address"
+];
+
+const FAMILY_ALLOWED_FIELDS = [
+  "registeredFamily"
+];
+
+const FAMILY_UPDATE_ALLOWED_FIELDS = [
+  "name",
+  "phone",
+  "gender",
+  "birthdate",
+  "relation"
 ];
 
 const PASSWORD_ALLOWED_FIELDS = [
@@ -75,7 +87,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const getMyProfile = async (req: Request, res: Response) => {
   try {
-    const userId = req.sessionData?.userId || req.user?.uid;
+    const userId = req.user?.uid;
 
     if (!userId) {
       res.status(401).json({ error: "로그인이 필요합니다." });
@@ -260,7 +272,7 @@ export const updateUserParentProfile = async (req: Request, res: Response) => {
 //       //부모 DB 아예 삭제
 //       await deleteUserService(id);
 //     }
- 
+
 //     res.status(200).json({ message: "부모 삭제 성공" });
 //   } catch (error: any) {
 //     const statusCode = typeof error.code === 'number' ? error.code : 500;
@@ -275,3 +287,154 @@ export const updateUserParentProfile = async (req: Request, res: Response) => {
 //     res.status(statusCode).json({ message: "유저 삭제 실패" });
 //   }
 // };
+
+export const addFamily = async (req: Request, res: Response) => {
+  try {
+    // uid 불러오기
+    const uid = req.user?.uid;
+    if (!uid) {
+      const error: any = new Error("로그인이 필요합니다.");
+      error.code = 401;
+      throw error;
+    }
+
+    // body에서 허용된 필드만 추출
+    const payload: any = {};
+    for (const field of FAMILY_ALLOWED_FIELDS) {
+      if (req.body[field] !== undefined) {
+        const registeredFamily = Array.isArray(req.body[field])
+          ? req.body[field]
+          : [req.body[field]];
+
+        // linkedAt 추가
+        const now = new Date().toISOString();
+        const parentsWithLinkedAt = registeredFamily.map((p: any) => ({
+          memberId: uuidv4(),
+          ...p,
+          linkedAt: now
+        }));
+
+        payload.registeredFamily = parentsWithLinkedAt;
+      }
+    }
+
+    if (!payload.registeredFamily || payload.registeredFamily.length === 0) {
+      const error: any = new Error("부모 정보가 없습니다.");
+      error.code = 400;
+      throw error;
+    }
+
+    await updateUserServiceUID(uid, payload);
+
+    res.status(200).json({ message: "회원 업데이트 성공" });
+  } catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 유저 in addFamily ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({ message: "유저 가족 정보 등록 실패" });
+  }
+}
+
+export const updateFamily = async (req: Request, res: Response) => {
+  try {
+    // uid 불러오기
+    const uid = req.user?.uid;
+    if (!uid) {
+      const error: any = new Error("로그인이 필요합니다.");
+      error.code = 401;
+      throw error;
+    }
+
+    // 부모 memberId 불러오기
+    const memberId = req.params.mid;
+    if (!memberId) {
+      const error: any = new Error("부모 식별자가 필요합니다.");
+      error.code = 400;
+      throw error;
+    }
+
+    // body에서 허용된 필드만 추출
+    const payload: any = {};
+    for (const field of FAMILY_UPDATE_ALLOWED_FIELDS) {
+      if (req.body[field] !== undefined) {
+        payload[field] = req.body[field];
+      }
+    }
+    payload[memberId] = memberId;
+
+    //본인 정보 불러오기
+    const user = await getUserByUIDService(uid);
+    let registeredFamily = user.registeredFamily;
+
+    registeredFamily = registeredFamily.map((member: any) =>
+      member.memberId === payload.memberId
+        ? { ...member, ...payload }  // 기존 값 유지, payload 값만 덮어쓰기
+        : member
+    );
+
+    await updateUserServiceUID(uid, { registeredFamily });
+
+    res.status(200).json({ message: "회원 가족 업데이트 성공" });
+  }
+  catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 유저 in updateFamily ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({ message: "유저 가족 정보 업데이트 실패" });
+  }
+}
+
+export const deleteFamily = async (req: Request, res: Response) => {
+  try {
+    // uid 불러오기
+    const uid = req.user?.uid;
+    if (!uid) {
+      const error: any = new Error("로그인이 필요합니다.");
+      error.code = 401;
+      throw error;
+    }
+
+    // 부모 memberId 불러오기
+    const memberId = req.params.mid;
+    if (!memberId) {
+      const error: any = new Error("부모 식별자가 필요합니다.");
+      error.code = 400;
+      throw error;
+    }
+
+    const user = await getUserByUIDService(uid);
+    let registeredFamily = user.registeredFamily ?? [];
+
+    // 해당 memberId와 같은 항목을 제외
+    registeredFamily = registeredFamily.filter((member: any) => member.memberId !== memberId);
+
+    // DB 업데이트
+    await updateUserServiceUID(uid, { registeredFamily });
+
+    res.status(200).json({ message: "회원 가족 삭제 성공" });
+  }
+  catch (error: any) {
+    const statusCode = typeof error.code === 'number' ? error.code : 500;
+
+    console.error(`[❌ 유저 in deleteFamily ${req.method} ${req.originalUrl}]`, {
+      statusCode,
+      message: error.message,
+      stack: error.stack,
+      user: req.sessionData?.userId || "unknown"
+    });
+
+    res.status(statusCode).json({ message: "유저 가족 정보 삭제 실패" });
+  }
+}

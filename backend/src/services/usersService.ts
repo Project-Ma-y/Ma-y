@@ -182,9 +182,9 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
         (err as any).code = 402;
         throw err;
       }
-
+      return true;
     }
-    return true;
+    return false;
 
   } catch (error) {
     console.error('Error updating user in compareUserPassword:', error);
@@ -238,6 +238,15 @@ export const updateUserParentServiceUID = async (userId: string, parentId: strin
     return userRecord;
   } catch (error) {
     console.error('Error updating user in updateUserService:', error);
+    throw error;
+  }
+}
+
+export const addFamilyService = async (uid: string) => {
+  try{
+
+  }  catch (error) {
+    console.error('Error adding parent in addFamilyService:', error);
     throw error;
   }
 }
