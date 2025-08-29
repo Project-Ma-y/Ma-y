@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Switch from "@/components/Switch";
 import { useUIStore } from "@/store/uiStore";
-import logoUrl from "@/assets/logo/logo.png";
+import logoUrl from "/assets/logo/logo.png";
 
 interface HeaderProps {
   type?: "default" | "header-a" | "header-b";

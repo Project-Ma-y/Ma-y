@@ -3,7 +3,7 @@ import MainLayout from "@/layouts/MainLayout";
 import Button from "@/components/button/Button";
 import Card from "@/components/Card";
 import { useNavigate } from "react-router-dom";
-import may1Url from "@/assets/img/may_1.png";
+import may1Url from "/assets/img/may_1.png";
 
 export default function Home() {
   const nav = useNavigate();
