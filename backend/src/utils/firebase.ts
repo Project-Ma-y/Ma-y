@@ -5,6 +5,7 @@ import { credential } from "firebase-admin";
 import { applicationDefault, cert } from "firebase-admin/app";
 dotenv.config();
 export const admin = require("firebase-admin");
+import { readFileSync } from "fs";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -18,18 +19,22 @@ const firebaseConfig = {
   messagingSenderId: process.env.FB_MESSAGE_ID,
   appId: process.env.FB_APP_ID,
   measurementId: process.env.FB_MEASUREMENT_ID,
-  databaseURL: process.env.FB_DATABASEURL
+  //  databaseURL: process.env.FB_DATABASEURL
 };
 
 // // Initialize Firebase
 // const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
 
-if(process.env.HOST){
-  const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+
+// Render Secret Files 에 올린 service account json 파일
+const serviceAccountPath = "/etc/secrets/ma-y-b1fa6-firebase-adminsdk-fbsvc-e87a6ba32e.json";
+const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf8"));
+
+if (process.env.HOST) {
   admin.initializeApp({
-  credential: cert(serviceAccount)
-});
+    credential: admin.credential.cert(serviceAccount),
+  });
 } else admin.initializeApp(firebaseConfig);
 
 console.log(admin.firestore());

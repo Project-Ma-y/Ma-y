@@ -29,6 +29,7 @@ export const createBooking = async (req: Request, res: Response) => {
     const userType = userData.customerType;
     const bookingPayload: Partial<BookingPayload> = {
       userId,
+      seniorId: req.body.seniorId,
       isDeleted: false,
       startBookingTime: req.body.startBookingTime,
       endBookingTime: req.body.endBookingTime,
@@ -200,7 +201,7 @@ export const deleteBooking = async (req: Request, res: Response) => {
       throw error;
     }
 
-    res.status(200).json(booking);
+    res.status(200).json({message: "삭제 성공"});
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;
 

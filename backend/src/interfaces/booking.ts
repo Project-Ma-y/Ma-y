@@ -2,8 +2,9 @@ import { fstore } from "../utils/firebase";
 
 export interface BookingPayload {
   isDeleted: boolean;
-  userId: string;
-  //familyId?: string;
+  userId: string; //예약자
+  seniorId?: string; //대상자
+  //companionId: string; //동행인
   startBookingTime: string; // 예약일 ISO 8601
   endBookingTime: string; // 예약시간 ISO 8601
   departureAddress: string; // 출발지
