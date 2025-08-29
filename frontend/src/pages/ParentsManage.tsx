@@ -6,16 +6,16 @@ import Button from "@/components/button/Button";
 import Input from "@/components/Input";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
-import { api } from "@/lib/api";
+import { createFamily, deleteFamily, updateFamily } from "@/services/familyApi";
 
 type Gender = "male" | "female";
 
 interface ParentForm {
-  mid?: string;
+  mid?: string;         // 서버 식별자 (memberId)
   name: string;
   phone: string;
   gender: "" | Gender;
-  birthdate: string;
+  birthdate: string;    // YYYY-MM-DD
   relation: string;
 }
 
@@ -73,7 +73,7 @@ export default function ParentsManage() {
     setRowMsg(({ [idx]: _c, ...rest }) => rest);
   };
 
-  const update = (idx: number, key: keyof ParentForm, value: string) =>
+  const updateField = (idx: number, key: keyof ParentForm, value: string) =>
     setForms((prev) => {
       const next = [...prev];
       const v =
@@ -84,7 +84,8 @@ export default function ParentsManage() {
       return next;
     });
 
-  const validateRowForCreate = (row: ParentForm): string[] => {
+  // POST 검증(모두 필요)
+  const validateCreate = (row: ParentForm): string[] => {
     const e: string[] = [];
     if (!row.name?.trim()) e.push("name 필수");
     if (!row.phone?.trim()) e.push("phone(숫자만) 필수");
@@ -94,9 +95,10 @@ export default function ParentsManage() {
     return e;
   };
 
-  const validateRowForUpdate = (row: ParentForm): string[] => {
+  // PUT 검증(mid 필요, 빈 값은 전송 않음)
+  const validateUpdate = (row: ParentForm): string[] => {
     const e: string[] = [];
-    if (!row.mid) e.push("memberId(mid)가 없습니다.");
+    if (!row.mid) e.push("memberId(mid) 없음");
     if (row.gender && row.gender !== "male" && row.gender !== "female") e.push("gender=male|female");
     if (row.birthdate && !isYYYYMMDD(row.birthdate)) e.push("birthdate 형식(YYYY-MM-DD)");
     if (row.name !== undefined && row.name.trim() === "") e.push("name은 빈 문자열 불가");
@@ -110,17 +112,17 @@ export default function ParentsManage() {
       setRowMsg((p) => ({ ...p, [idx]: "이미 생성된 항목" }));
       return { idx, ok: false };
     }
-    const errs = validateRowForCreate(row);
+    const errs = validateCreate(row);
     if (errs.length) {
-      setRowErrors((prev) => ({ ...prev, [idx]: errs }));
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "입력값 확인" }));
+      setRowErrors((p) => ({ ...p, [idx]: errs }));
+      setRowStatus((p) => ({ ...p, [idx]: "error" }));
+      setRowMsg((p) => ({ ...p, [idx]: "입력값 확인" }));
       return { idx, ok: false };
     }
     const payload = {
       name: row.name.trim(),
       phone: digitsOnly(row.phone),
-      gender: row.gender,
+      gender: row.gender as "male" | "female",
       birthdate: row.birthdate.trim(),
       relation: row.relation.trim(),
     };
@@ -128,8 +130,7 @@ export default function ParentsManage() {
       setRowErrors((p) => ({ ...p, [idx]: [] }));
       setRowStatus((p) => ({ ...p, [idx]: "saving" }));
       setRowMsg((p) => ({ ...p, [idx]: "" }));
-      const res = await api.post("/users/family", payload);
-      const created = res.data;
+      const created = await createFamily(payload);
       const newMid = pickMid(created);
       if (newMid) {
         setForms((prev) => {
@@ -137,15 +138,17 @@ export default function ParentsManage() {
           next[idx] = { ...next[idx], mid: newMid };
           return next;
         });
+      } else {
+        await fetchUserProfile(); // 응답에 mid 없으면 동기화
       }
       setRowStatus((p) => ({ ...p, [idx]: "ok" }));
-      setRowMsg((p) => ({ ...p, [idx]: "회원 생성 성공" }));
+      setRowMsg((p) => ({ ...p, [idx]: "등록 성공" }));
       return { idx, ok: true };
     } catch (err: any) {
       const status = err?.response?.status;
-      const raw = err?.response?.data ?? err?.message ?? "생성 실패";
+      const raw = err?.response?.data ?? err?.message ?? "등록 실패";
       setRowStatus((p) => ({ ...p, [idx]: "error" }));
-      setRowMsg((p) => ({ ...p, [idx]: typeof raw === "string" ? raw : "생성 실패" }));
+      setRowMsg((p) => ({ ...p, [idx]: typeof raw === "string" ? raw : "등록 실패" }));
       setRowErrors((p) => ({ ...p, [idx]: [...(p[idx] || []), `HTTP ${status ?? "ERR"}`] }));
       return { idx, ok: false };
     }
@@ -153,11 +156,11 @@ export default function ParentsManage() {
 
   const updateOne = async (idx: number) => {
     const row = forms[idx];
-    const errs = validateRowForUpdate(row);
+    const errs = validateUpdate(row);
     if (errs.length) {
-      setRowErrors((prev) => ({ ...prev, [idx]: errs }));
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "입력값 확인" }));
+      setRowErrors((p) => ({ ...p, [idx]: errs }));
+      setRowStatus((p) => ({ ...p, [idx]: "error" }));
+      setRowMsg((p) => ({ ...p, [idx]: "입력값 확인" }));
       return { idx, ok: false };
     }
     const payload: Record<string, any> = {};
@@ -167,57 +170,47 @@ export default function ParentsManage() {
     if (row.birthdate) payload.birthdate = row.birthdate.trim();
     if (row.relation) payload.relation = row.relation.trim();
     if (Object.keys(payload).length === 0) {
-      setRowStatus((prev) => ({ ...prev, [idx]: "idle" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "변경할 값이 없습니다." }));
+      setRowStatus((p) => ({ ...p, [idx]: "idle" }));
+      setRowMsg((p) => ({ ...p, [idx]: "변경할 값이 없습니다." }));
       return { idx, skipped: true };
     }
     try {
-      setRowErrors((prev) => ({ ...prev, [idx]: [] }));
-      setRowStatus((prev) => ({ ...prev, [idx]: "saving" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "" }));
-      const res = await api.put(`/users/family/${row.mid}`, payload);
-      if (res.status === 200) {
-        setRowStatus((prev) => ({ ...prev, [idx]: "ok" }));
-        setRowMsg((prev) => ({ ...prev, [idx]: "회원 업데이트 성공" }));
-        return { idx, ok: true };
-      }
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: `서버 응답 코드 ${res.status}` }));
-      return { idx, ok: false };
+      setRowErrors((p) => ({ ...p, [idx]: [] }));
+      setRowStatus((p) => ({ ...p, [idx]: "saving" }));
+      setRowMsg((p) => ({ ...p, [idx]: "" }));
+      await updateFamily(row.mid!, payload);
+      setRowStatus((p) => ({ ...p, [idx]: "ok" }));
+      setRowMsg((p) => ({ ...p, [idx]: "업데이트 성공" }));
+      return { idx, ok: true };
     } catch (err: any) {
       const status = err?.response?.status;
       const raw = err?.response?.data ?? err?.message ?? "업데이트 실패";
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: typeof raw === "string" ? raw : "업데이트 실패" }));
-      setRowErrors((prev) => ({ ...prev, [idx]: [...(prev[idx] || []), `HTTP ${status ?? "ERR"}`] }));
+      setRowStatus((p) => ({ ...p, [idx]: "error" }));
+      setRowMsg((p) => ({ ...p, [idx]: typeof raw === "string" ? raw : "업데이트 실패" }));
+      setRowErrors((p) => ({ ...p, [idx]: [...(p[idx] || []), `HTTP ${status ?? "ERR"}`] }));
       return { idx, ok: false };
     }
   };
 
-  const deleteOne = async (idx: number) => {
+  const deleteOneRow = async (idx: number) => {
     const row = forms[idx];
     if (!row.mid) {
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "memberId(mid) 없음" }));
+      setRowStatus((p) => ({ ...p, [idx]: "error" }));
+      setRowMsg((p) => ({ ...p, [idx]: "memberId(mid) 없음" }));
       return { idx, ok: false };
     }
     try {
-      setRowStatus((prev) => ({ ...prev, [idx]: "deleting" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: "" }));
-      const res = await api.delete(`/users/family/${row.mid}`);
-      if (res.status === 200) {
-        removeRowLocal(idx);
-        return { idx, ok: true };
-      }
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: `서버 응답 코드 ${res.status}` }));
-      return { idx, ok: false };
+      setRowStatus((p) => ({ ...p, [idx]: "deleting" }));
+      setRowMsg((p) => ({ ...p, [idx]: "" }));
+      await deleteFamily(row.mid);
+      removeRowLocal(idx);
+      return { idx, ok: true };
     } catch (err: any) {
       const status = err?.response?.status;
       const raw = err?.response?.data ?? err?.message ?? "삭제 실패";
-      setRowStatus((prev) => ({ ...prev, [idx]: "error" }));
-      setRowMsg((prev) => ({ ...prev, [idx]: typeof raw === "string" ? raw : "삭제 실패" }));
-      setRowErrors((prev) => ({ ...prev, [idx]: [...(prev[idx] || []), `HTTP ${status ?? "ERR"}`] }));
+      setRowStatus((p) => ({ ...p, [idx]: "error" }));
+      setRowMsg((p) => ({ ...p, [idx]: typeof raw === "string" ? raw : "삭제 실패" }));
+      setRowErrors((p) => ({ ...p, [idx]: [...(p[idx] || []), `HTTP ${status ?? "ERR"}`] }));
       return { idx, ok: false };
     }
   };
@@ -280,13 +273,13 @@ export default function ParentsManage() {
                 <Input
                   label="이름"
                   value={f.name}
-                  onChange={(e) => update(idx, "name", e.target.value)}
+                  onChange={(e) => updateField(idx, "name", e.target.value)}
                   placeholder="홍길동"
                 />
                 <Input
                   label="전화번호(숫자만)"
                   value={f.phone}
-                  onChange={(e) => update(idx, "phone", e.target.value)}
+                  onChange={(e) => updateField(idx, "phone", e.target.value)}
                   placeholder="01012345678"
                 />
                 <div>
@@ -294,7 +287,7 @@ export default function ParentsManage() {
                   <select
                     className="w-full border rounded-md px-3 py-2 text-sm"
                     value={f.gender}
-                    onChange={(e) => update(idx, "gender", e.target.value)}
+                    onChange={(e) => updateField(idx, "gender", e.target.value)}
                   >
                     <option value="">선택안함</option>
                     <option value="male">남성</option>
@@ -304,13 +297,13 @@ export default function ParentsManage() {
                 <Input
                   label="생년월일 (YYYY-MM-DD)"
                   value={f.birthdate}
-                  onChange={(e) => update(idx, "birthdate", e.target.value)}
+                  onChange={(e) => updateField(idx, "birthdate", e.target.value)}
                   placeholder="1970-05-15"
                 />
                 <Input
                   label="관계"
                   value={f.relation}
-                  onChange={(e) => update(idx, "relation", e.target.value)}
+                  onChange={(e) => updateField(idx, "relation", e.target.value)}
                   placeholder="아버지 / 어머니 / 이모 / 삼촌"
                 />
               </div>
@@ -343,7 +336,7 @@ export default function ParentsManage() {
                     <Button
                       type="secondary"
                       buttonName={status === "deleting" ? "삭제 중..." : "이 행 삭제"}
-                      onClick={() => deleteOne(idx)}
+                      onClick={() => deleteOneRow(idx)}
                       disabled={status === "saving" || status === "deleting"}
                     />
                   </>
