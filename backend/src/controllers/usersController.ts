@@ -324,10 +324,15 @@ export const addFamily = async (req: Request, res: Response) => {
       throw error;
     }
 
-    
+
     //본인 정보 불러와서 기존 가족에 정보 더하기
     const user = await getUserByUIDService(uid);
-    let registeredFamily = [...(user.registeredFamily), payload.registeredFamily];
+    const existing = Array.isArray(user.registeredFamily) ? user.registeredFamily : [];
+    const incoming = Array.isArray(payload.registeredFamily) ? payload.registeredFamily : [payload.registeredFamily];
+
+    const registeredFamily = [...existing, ...incoming]; // ← 두 번 펼치기!
+
+    await updateUserServiceUID(uid, { registeredFamily });
 
     await updateUserServiceUID(uid, { registeredFamily });
 
@@ -435,7 +440,7 @@ export const deleteFamily = async (req: Request, res: Response) => {
       error.code = 404;
       throw error;
     }
-    
+
     // 해당 memberId와 같은 항목을 제외
     registeredFamily = registeredFamily.filter((member: any) => member.memberId !== memberId);
 
