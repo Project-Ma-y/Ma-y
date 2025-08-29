@@ -324,7 +324,12 @@ export const addFamily = async (req: Request, res: Response) => {
       throw error;
     }
 
-    await updateUserServiceUID(uid, payload);
+    
+    //본인 정보 불러와서 기존 가족에 정보 더하기
+    const user = await getUserByUIDService(uid);
+    let registeredFamily = [...(user.registeredFamily), payload];
+
+    await updateUserServiceUID(uid, { registeredFamily });
 
     res.status(200).json({ message: "회원 업데이트 성공" });
   } catch (error: any) {
@@ -366,19 +371,25 @@ export const updateFamily = async (req: Request, res: Response) => {
         payload[field] = req.body[field];
       }
     }
-    payload[memberId] = memberId;
+    payload.memberId = memberId;
 
-    //본인 정보 불러오기
+    // 4) 기존 데이터 로드
     const user = await getUserByUIDService(uid);
-    let registeredFamily = user.registeredFamily;
+    const family = user.registeredFamily ?? [];
 
-    registeredFamily = registeredFamily.map((member: any) =>
-      member.memberId === payload.memberId
-        ? { ...member, ...payload }  // 기존 값 유지, payload 값만 덮어쓰기
-        : member
-    );
+    // 5) 대상 찾기
+    const idx = family.findIndex((m: any) => m?.memberId === memberId);
+    if (idx === -1) {
+      const err: any = new Error("해당 memberId의 가족을 찾을 수 없습니다.");
+      err.code = 404;
+      throw err;
+    }
 
-    await updateUserServiceUID(uid, { registeredFamily });
+    // 6) 병합(필요 시 null → 필드삭제 로직 추가 가능)
+    const cur = { ...family[idx], ...payload };
+    family[idx] = cur;
+
+    await updateUserServiceUID(uid, { registeredFamily: family });
 
     res.status(200).json({ message: "회원 가족 업데이트 성공" });
   }
@@ -417,6 +428,14 @@ export const deleteFamily = async (req: Request, res: Response) => {
     const user = await getUserByUIDService(uid);
     let registeredFamily = user.registeredFamily ?? [];
 
+    // 삭제 전 존재 여부 확인
+    const exists = registeredFamily.some((member: any) => member.memberId === memberId);
+    if (!exists) {
+      const error: any = new Error("해당 memberId의 가족을 찾을 수 없습니다.");
+      error.code = 404;
+      throw error;
+    }
+    
     // 해당 memberId와 같은 항목을 제외
     registeredFamily = registeredFamily.filter((member: any) => member.memberId !== memberId);
 
