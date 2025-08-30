@@ -7,6 +7,7 @@ import Card from "@/components/Card";
 import ReservationCard from "@/components/ReservationCard";
 import clsx from "clsx";
 import { getAuth, signOut } from "firebase/auth";
+import api from "@/lib/api"; // ✅ DELETE 요청에 사용
 
 const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
 
@@ -105,6 +106,40 @@ export default function MyPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isResLoading, setIsResLoading] = useState<boolean>(true);
 
+  // ✅ 취소 결과 모달
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelModalMsg, setCancelModalMsg] = useState("예약이 취소되었습니다.");
+
+  // ✅ 예약 취소
+  const handleCancelReservation = async (rid: string) => {
+    try {
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("로그인 필요");
+
+      const params: Record<string, any> = {};
+      // 서버 요구사항에 따라 mid가 필수면 아래 주석 해제해서 적용
+      // const mid = (profile?.registeredFamily?.[0]?.memberId as string) || undefined;
+      // if (mid) params.mid = mid;
+
+      await api.delete(`/booking/${rid}`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true, // 쿠키 포함
+      });
+
+      // 로컬 목록에서 제거
+      setReservations((prev) => prev.filter((r) => (r._id ?? r.id) !== rid));
+
+      setCancelModalMsg("예약이 취소되었습니다.");
+      setIsCancelModalOpen(true);
+    } catch (error) {
+      console.error("[MyPage] 예약 취소 실패:", error);
+      setCancelModalMsg("예약 취소에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setIsCancelModalOpen(true);
+    }
+  };
+
   useEffect(() => {
     if (isLoggedIn) {
       const run = async () => {
@@ -123,6 +158,7 @@ export default function MyPage() {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
+            credentials: "include",
           });
           if (!resp.ok) {
             setReservations([]);
@@ -217,6 +253,21 @@ export default function MyPage() {
 
     return (
       <>
+        {/* ✅ 취소 모달 */}
+        {isCancelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="w-[90%] max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+              <p className="text-center text-base">{cancelModalMsg}</p>
+              <button
+                onClick={() => setIsCancelModalOpen(false)}
+                className="mt-4 w-full rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        )}
+
         <Card className="flex items-center gap-4 p-4">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 overflow-hidden">
             {profile.profileImage ? (
@@ -327,9 +378,9 @@ export default function MyPage() {
                   status={mapStatusToCardStatus(recentReservation.status)}
                   dateText={formatDateToText(recentReservation.startBookingTime)}
                   title={`${recentReservation.destinationAddress} 방문`}
-                  companionText={"김이박 동행인"}
+                  companionText={"매칭 대기중"}
                   onConfirm={() => goReservationDetail(navigate, rid)}
-                  onCancel={() => goReservationDetail(navigate, rid)}
+                  onCancel={() => handleCancelReservation(rid)}  // ✅ 취소 → 모달
                 />
               ) : (
                 <Card className="p-4 border border-red-200">

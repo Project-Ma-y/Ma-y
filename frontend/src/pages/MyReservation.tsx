@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import ReservationCard from "@/components/ReservationCard";
 import { useUserStore } from "@/store/userStore";
 import api from "@/lib/api"; // ✅ 단일 인스턴스 사용
+import { getAuth } from "firebase/auth";
 
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";
 
@@ -88,6 +89,10 @@ export default function MyReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ✅ 모달 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMsg, setModalMsg] = useState("예약이 취소되었습니다.");
+
   useEffect(() => {
     const fetchReservations = async () => {
       setIsLoading(true);
@@ -100,11 +105,11 @@ export default function MyReservations() {
       }
 
       try {
-        // ✅ 토큰은 인터셉터에서 자동 부착
+        // ✅ 토큰은 인터셉터에서 자동 부착(환경에 따라 아래 주석 해제 가능)
         const url = `/booking/my`;
         logInfo("예약 목록 요청 시작:", url);
 
-        const resp = await api.get<Reservation[]>(url);
+        const resp = await api.get<Reservation[]>(url, { withCredentials: true });
         const data = resp.data ?? [];
         logInfo("예약 원본 데이터 수:", data?.length ?? 0);
 
@@ -167,6 +172,39 @@ export default function MyReservations() {
     navigate(path);
   };
 
+  // ✅ 예약 취소
+  const handleCancelReservation = async (rid?: string) => {
+    try {
+      if (!rid) throw new Error("예약 ID가 없습니다.");
+
+      const auth = getAuth();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("로그인이 필요합니다.");
+
+      const params: Record<string, any> = {};
+      // 서버 요구에 따라 mid가 필요하면 주석 해제
+      // const mid = undefined; // 선택 mid가 있다면 세팅
+      // if (mid) params.mid = mid;
+
+      await api.delete(`/booking/${rid}`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true, // 쿠키 포함
+      });
+
+      // 목록에서 제거
+      setReservations((prev) => prev.filter((r) => (r._id ?? r.id) !== rid));
+
+      // 성공 모달
+      setModalMsg("예약이 취소되었습니다.");
+      setIsModalOpen(true);
+    } catch (e) {
+      console.error("예약 취소 실패:", e);
+      setModalMsg("예약 취소에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setIsModalOpen(true);
+    }
+  };
+
   const hasReservations = reservations.length > 0;
 
   return (
@@ -177,6 +215,21 @@ export default function MyReservations() {
       }}
       showNav={true}
     >
+      {/* ✅ 성공/실패 모달 */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-[90%] max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <p className="text-center text-base">{modalMsg}</p>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="mt-4 w-full rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-gray-50"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center items-center h-48">
           <p className="text-gray-500">예약 정보를 불러오는 중...</p>
@@ -205,9 +258,9 @@ export default function MyReservations() {
                 status={mapStatusToCardStatus(reservation.status)}
                 dateText={formatDateToText(reservation.startBookingTime)}
                 title={`${reservation.destinationAddress} 방문`}
-                companionText={"김이박 동행인"}
+                companionText={"매칭 대기중"}
                 onConfirm={() => handleGoDetail(rid)}
-                onCancel={() => logInfo("예약 취소 클릭:", rid)}
+                onCancel={() => handleCancelReservation(rid)}  // ✅ 취소 → 모달
               />
             );
           })}
