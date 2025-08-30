@@ -1,37 +1,46 @@
-import { create } from 'zustand'
-
-type Toast = { id: string; title?: string; message: string; duration?: number }
-type ModalState = { id: string; isOpen: boolean; payload?: unknown }
+// src/store/uiStore.ts
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 type UIState = {
-  toasts: Toast[]
-  modals: Record<string, ModalState>
-  pushToast: (t: Omit<Toast, 'id'>) => string
-  removeToast: (id: string) => void
-  openModal: (id: string, payload?: unknown) => void
-  closeModal: (id: string) => void
-  isModalOpen: (id: string) => boolean
-  getModalPayload: (id: string) => unknown
-}
+  // 기존 모달 상태들...
+  modals: Record<string, boolean>;
 
-export const useUIStore = create<UIState>((set, get) => ({
-  toasts: [],
-  modals: {},
-  pushToast: (t) => {
-    const id = crypto.randomUUID()
-    const toast = { id, duration: 2500, ...t }
-    set((s) => ({ toasts: [...s.toasts, toast] }))
-    if (toast.duration && toast.duration > 0) {
-      setTimeout(() => get().removeToast(id), toast.duration)
-    }
-    return id
-  },
-  removeToast: (id) =>
-    set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
-  openModal: (id, payload) =>
-    set((s) => ({ modals: { ...s.modals, [id]: { id, isOpen: true, payload } } })),
-  closeModal: (id) =>
-    set((s) => ({ modals: { ...s.modals, [id]: { id, isOpen: false } } })),
-  isModalOpen: (id) => !!get().modals[id]?.isOpen,
-  getModalPayload: (id) => get().modals[id]?.payload,
-}))
+  // ✅ 글자 확대
+  largeTextEnabled: boolean;
+};
+
+type UIActions = {
+  // 기존 모달 액션들...
+  openModal: (id: string) => void;
+  closeModal: (id: string) => void;
+  isModalOpen: (id: string) => boolean;
+
+  // ✅ 글자 확대 토글
+  toggleLargeText: (enabled?: boolean) => void;
+};
+
+export const useUIStore = create<UIState & UIActions>()(
+  persist(
+    (set, get) => ({
+      // ---- existing ----
+      modals: {},
+      openModal: (id) => set((s) => ({ modals: { ...s.modals, [id]: true } })),
+      closeModal: (id) =>
+        set((s) => {
+          const next = { ...s.modals };
+          delete next[id];
+          return { modals: next };
+        }),
+      isModalOpen: (id) => !!get().modals[id],
+
+      // ✅ 글자 확대 (로컬스토리지에 유지)
+      largeTextEnabled: false,
+      toggleLargeText: (enabled) =>
+        set((s) => ({
+          largeTextEnabled: typeof enabled === "boolean" ? enabled : !s.largeTextEnabled,
+        })),
+    }),
+    { name: "ui-prefs" }
+  )
+);

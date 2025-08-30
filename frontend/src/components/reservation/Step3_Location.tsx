@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+// src/pages/reservation/Step3_Location.tsx
+import React, { useMemo, useState } from "react";
 import Card from "@/components/Card";
 import Button from "@/components/button/Button";
-import Input from "@/components/Input"; // Input 컴포넌트 import (가정)
+import NaverMapPicker from "@/components/maps/NaverMapPicker";
 
 interface Step3Props {
   formData: any;
@@ -9,37 +10,74 @@ interface Step3Props {
   onPrev: () => void;
 }
 
+type Place = {
+  coord: { lat: number; lng: number } | null;
+  address: string;
+};
+
 const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
-  const [departureAddress, setDepartureAddress] = useState(formData.departureAddress || "한국외국어대학교 서울캠퍼스");
-  const [destinationAddress, setDestinationAddress] = useState(formData.destinationAddress || "경희대학교 의료원");
-  
+  const [departure, setDeparture] = useState<Place>({
+    coord: null,
+    address: formData?.departureAddress || "한국외국어대학교 서울캠퍼스",
+  });
+  const [destination, setDestination] = useState<Place>({
+    coord: null,
+    address: formData?.destinationAddress || "경희대학교 의료원",
+  });
+
+  const isValid = useMemo(
+    () => Boolean(departure.address && destination.address),
+    [departure.address, destination.address]
+  );
+
   const handleNextClick = () => {
-    if (departureAddress && destinationAddress) {
-      onNext({ departureAddress, destinationAddress });
-    } else {
-      console.log("출발지와 목적지를 모두 입력해주세요.");
-    }
+    if (!isValid) return;
+    onNext({
+      // 백엔드로 전송할 필드
+      departureAddress: departure.address,
+      destinationAddress: destination.address,
+      // 좌표도 함께 넘기고 싶으면 아래 포함
+      departureCoord: departure.coord,
+      destinationCoord: destination.coord,
+    });
   };
 
   return (
     <div className="relative">
-      {/* 지도 영역 (임시) */}
-      <div className="w-full h-[60vh] bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
-        맵 구현중
-      </div>
+      <NaverMapPicker
+        initialDeparture={departure}
+        initialDestination={destination}
+        onChange={({ departure: d, destination: t }) => {
+          setDeparture(d);
+          setDestination(t);
+        }}
+      />
 
-      {/* 오버레이 카드 */}
-      <Card className="absolute bottom-0 w-full rounded-b-none p-0">
-        <div className="p-4">
-          <h2 className="text-xl font-bold mb-4">어디로 동행해드릴까요?</h2>
-          <ul className="list-disc list-inside space-y-2 text-gray-700 font-medium">
-            <li>출발지: {departureAddress}</li>
-            <li>목적지: {destinationAddress}</li>
+      {/* 하단 정보 + 버튼 */}
+      <Card className="absolute bottom-0 w-full rounded-b-none p-0 pointer-events-none bg-transparent shadow-none">
+        <div className="pointer-events-auto p-4">
+          <h2 className="text-xl font-bold mb-3">어디로 동행해드릴까요?</h2>
+
+          <ul className="space-y-2 text-gray-700 text-sm">
+            <li className="flex gap-2">
+              <span className="text-gray-500 shrink-0">출발지</span>
+              <span className="font-medium break-all">{departure.address}</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-gray-500 shrink-0">목적지</span>
+              <span className="font-medium break-all">{destination.address}</span>
+            </li>
           </ul>
         </div>
 
-        <div className="flex justify-center p-4 bg-gray-50 border-t">
-          <Button onClick={handleNextClick} buttonName="다음" type="primary" disabled={!departureAddress || !destinationAddress} />
+        <div className="pointer-events-auto flex justify-between gap-2 p-4 bg-gray-50 border-t">
+          <Button onClick={onPrev} buttonName="이전" type="secondary" />
+          <Button
+            onClick={handleNextClick}
+            buttonName="다음"
+            type="primary"
+            disabled={!isValid}
+          />
         </div>
       </Card>
     </div>

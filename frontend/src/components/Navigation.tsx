@@ -39,8 +39,8 @@ const UserIcon = ({ active }: { active: boolean }) => (
 
 export default function Navigation({ activePath }: NavigationProps) {
   const navItems = [
-    { label: "홈", path: "/home", icon: <HomeIcon active={activePath === "/home"} /> },
-    { label: "검색", path: "/my-reservation", icon: <SearchIcon active={activePath === "/my-reservation"} /> },
+    { label: "홈", path: "/", icon: <HomeIcon active={activePath === "/"} /> },
+    { label: "예약", path: "/my-reservation", icon: <SearchIcon active={activePath === "/my-reservation"} /> },
     { label: "채팅", path: "/chat", icon: <ChatIcon active={activePath === "/chat"} /> },
     { label: "내 정보", path: "/profile", icon: <UserIcon active={activePath === "/profile"} /> },
   ];

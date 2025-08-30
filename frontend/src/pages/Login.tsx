@@ -6,8 +6,7 @@ import Input from "@/components/Input";
 import Button from "@/components/button/Button";
 import { loginWithFirebase } from "@/services/firebaseAuth";
 import { useAuthStore } from "@/store/authStore";
-import { pingServer } from "@/services/adminTest";
-import React from 'react';
+import React from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth as firebaseAuth } from "@/services/firebase";
 
@@ -21,26 +20,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [serverResp, setServerResp] = useState("");
 
+  // ✅ 로그인 성공 시 /home 으로 이동
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
       if (user) {
-        try {
-          const idToken = await user.getIdToken();
-          setAuth({ uid: user.uid, idToken });
-          // pingServer 함수는 토큰을 헤더에 담아 호출해야 합니다.
-          // 현재 코드에서는 pingServer 함수가 토큰을 어떻게 사용하는지 알 수 없으므로,
-          // 만약 pingServer가 토큰을 필요로 한다면 해당 함수를 수정해야 합니다.
-          const data = await pingServer();
-          setServerResp(JSON.stringify(data, null, 2));
-        } catch (e) {
-          setServerResp(`서버 호출 실패: ${e?.response?.data?.message ?? e?.message}`);
-        }
-        nav("/home");
+        setAuth(user); // Zustand에 사용자 상태 저장
+        nav("/");  // 홈으로 이동
       }
     });
 
     return () => unsubscribe();
-  }, [setAuth, nav]);
+  }, [nav, setAuth]);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,13 +39,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // 이메일 유효성 검사 (간단한 형태)
       let finalEmail = email.trim();
-      // 이메일 주소에 "@" 기호가 포함되어 있지 않으면 "@may.com"을 추가
-      if (!finalEmail.includes('@')) {
+      if (!finalEmail.includes("@")) {
         finalEmail += "@may.com";
       }
-      
       await loginWithFirebase(finalEmail, password);
     } catch (e: any) {
       setErr(e.message);
@@ -66,10 +53,7 @@ export default function Login() {
   };
 
   return (
-    <MainLayout
-      headerProps={{ showHeader: false, showBack: true }}
-      showNav={false}
-    >
+    <MainLayout headerProps={{ showHeader: false, showBack: true }} showNav={false}>
       <div className="flex flex-col items-center mb-6">
         <img src="/assets/logo/logo.png" className="w-15" alt="" />
         <h1 className="mt-2 text-xl font-bold text-gray-900 dark:text-white">Ma:y</h1>
@@ -99,9 +83,11 @@ export default function Login() {
           disabled={loading}
         />
         <div className="text-center text-sm text-gray-500">
-          계정이 없나요? <Link to="/signup" className="text-[var(--color-primary)]">회원가입</Link>
+          계정이 없나요?{" "}
+          <Link to="/signup" className="text-[var(--color-primary)]">
+            회원가입
+          </Link>
         </div>
-
         {serverResp && (
           <pre className="mt-3 max-h-60 overflow-auto rounded-xl bg-gray-50 p-3 text-xs">
             {serverResp}

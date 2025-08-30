@@ -17,7 +17,8 @@ const Step2_DateTime: React.FC<Step2Props> = ({ formData, onNext, onPrev }) => {
   const [endTime, setEndTime] = useState(formData.endTime || "17:00");
 
   const today = new Date();
-  
+  today.setHours(0, 0, 0, 0); // 시간을 0으로 초기화하여 날짜만 비교
+
   // 주어진 연도와 월의 날짜 수를 반환하는 함수
   const getDaysInMonth = (year: number, month: number): number => {
     return new Date(year, month + 1, 0).getDate();
@@ -41,18 +42,29 @@ const Step2_DateTime: React.FC<Step2Props> = ({ formData, onNext, onPrev }) => {
   // 월의 날짜 채우기
   for (let day = 1; day <= daysInMonth; day++) {
     const dayDate = new Date(year, month, day);
-    const isToday = dayDate.toDateString() === today.toDateString();
-    const isSelected = selectedDate && dayDate.toDateString() === selectedDate.toDateString();
+    dayDate.setHours(0, 0, 0, 0); // 시간을 0으로 초기화하여 날짜만 비교
+
+    const isToday = dayDate.getTime() === today.getTime();
+    const isSelected = selectedDate && dayDate.getTime() === selectedDate.getTime();
     
+    // 과거 날짜인지 확인
+    const isPast = dayDate.getTime() < today.getTime();
+
     calendarDays.push(
       <button
         key={day}
-        onClick={() => setSelectedDate(dayDate)}
+        onClick={() => {
+          if (!isPast) {
+            setSelectedDate(dayDate);
+          }
+        }}
         className={`
           flex items-center justify-center h-10 w-10 text-lg rounded-full transition-colors
-          ${isToday ? "border-2 border-yellow-500" : ""}
-          ${isSelected ? "bg-yellow-500 text-white font-bold" : "text-gray-800"}
+          ${isPast ? "text-gray-300 cursor-not-allowed" : ""}
+          ${isToday && !isPast ? "border-2 border-yellow-500" : ""}
+          ${isSelected ? "bg-yellow-500 text-white font-bold" : isPast ? "" : "text-gray-800"}
         `}
+        disabled={isPast}
         aria-label={`날짜 ${day}`}
       >
         {day}
@@ -62,7 +74,10 @@ const Step2_DateTime: React.FC<Step2Props> = ({ formData, onNext, onPrev }) => {
 
   // 이전 달로 이동
   const handlePrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
+    // 현재 월 이전으로는 이동 불가능하게 막기
+    if (new Date(year, month - 1, 1) >= new Date(today.getFullYear(), today.getMonth(), 1)) {
+        setCurrentDate(new Date(year, month - 1, 1));
+    }
   };
   
   // 다음 달로 이동
@@ -98,16 +113,16 @@ const Step2_DateTime: React.FC<Step2Props> = ({ formData, onNext, onPrev }) => {
   return (
     <div className="p-0">
       <div className="p-4">
-        <div className="text-center mb-6"> {/* 이 div를 추가하여 제목과 부제목을 감싸고 중앙 정렬 */}
-            <h2 className="text-xl font-bold mb-1">언제 동행해드릴까요?</h2>
-            <p className="text-sm text-yellow-500">동행 날짜와 시간을 설정해주세요!</p>
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-bold mb-1">언제 동행해드릴까요?</h2>
+          <p className="text-sm text-yellow-500">동행 날짜와 시간을 설정해주세요!</p>
         </div>
         
         {/* 달력 영역 */}
         <div className="flex flex-col items-center">
           {/* 달력 헤더 */}
           <div className="flex justify-between items-center w-full mb-4 px-4">
-            <button aria-label="이전 달" onClick={handlePrevMonth}>
+            <button aria-label="이전 달" onClick={handlePrevMonth} disabled={new Date(year, month, 1) <= new Date(today.getFullYear(), today.getMonth(), 1)}>
               <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>

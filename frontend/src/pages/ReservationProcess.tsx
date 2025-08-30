@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import { useNavigate } from "react-router-dom";
 import Step1_UserSelection from "@/components/reservation/Step1_UserSelection";
-import Step2_DateTime from "@/components/reservation/Step2_DateTime";
+import Step2_DateTime from "@/components/reservation/Step2_DateTime"; 
 import Step3_Location from "@/components/reservation/Step3_Location";
 import Step4_AdditionalInfo from "@/components/reservation/Step4_AdditionalInfo";
 import Step5_Confirmation from "@/components/reservation/Step5_Confirmation";
@@ -63,6 +63,7 @@ export default function ReservationProcess() {
        type: "header-a",
        title: "동행 예약하기",
       }}
+      showNav={false}
     >
       <CurrentStepComponent
         formData={formData}

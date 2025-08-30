@@ -1,0 +1,8 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+// src/pages/admin/EndpointTable.tsx
+import Button from "@/components/button/Button";
+import Card from "@/components/Card";
+import { ADMIN_ENDPOINTS } from "@/lib/adminEndpoints";
+export default function EndpointTable({ onTest, loadingEndpoint }) {
+    return (_jsxs(Card, { className: "p-0 overflow-hidden", children: [_jsx("div", { className: "px-4 py-3 text-lg font-bold border-b", children: "API Endpoints" }), _jsx("div", { className: "overflow-x-auto", children: _jsxs("table", { className: "min-w-full text-sm", children: [_jsx("thead", { className: "bg-gray-50", children: _jsxs("tr", { children: [_jsx("th", { className: "px-4 py-2 text-left font-semibold", children: "\uAE30\uB2A5" }), _jsx("th", { className: "px-4 py-2 text-left font-semibold", children: "HTTP" }), _jsx("th", { className: "px-4 py-2 text-left font-semibold", children: "API Path" }), _jsx("th", { className: "px-4 py-2" })] }) }), _jsx("tbody", { children: ADMIN_ENDPOINTS.map((e) => (_jsxs("tr", { className: "border-t", children: [_jsx("td", { className: "px-4 py-3", children: e.name }), _jsx("td", { className: "px-4 py-3", children: _jsx("span", { className: "rounded-md border bg-gray-100 px-2 py-0.5 text-xs font-bold", children: e.method }) }), _jsx("td", { className: "px-4 py-3 font-mono", children: e.path }), _jsx("td", { className: "px-4 py-3 text-right", children: e.method === "GET" && (_jsx(Button, { type: "secondary", buttonName: loadingEndpoint === e.path ? "테스트 중..." : "테스트", onClick: () => onTest(e.path), disabled: loadingEndpoint !== null, className: "h-8 px-3 text-xs" })) })] }, e.name))) })] }) })] }));
+}

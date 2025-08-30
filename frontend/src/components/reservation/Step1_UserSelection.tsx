@@ -1,7 +1,18 @@
-import React, { useState } from "react";
-import Card from "@/components/Card";
+// src/components/reservation/Step1_UserSelection.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/button/Button";
+import { useUserStore } from "@/store/userStore";
+import { useNavigate } from "react-router-dom";
 
+// 전화번호 정규화 유틸
+const getPhone = (v: any) =>
+  v?.phone ?? v?.phoneNumber ?? v?.contact?.phone ?? v?.contact ?? "";
+
+// ✅ 백엔드에 seniorId로 보낼 memberId 추출 유틸 (백엔드 스키마 변동 대비)
+const getMemberId = (v: any) =>
+  v?.memberId ?? v?.member_id ?? v?.id ?? v?.uid ?? "";
+
+// Props 타입 (필요 시 프로젝트 공용 타입으로 교체)
 interface Step1Props {
   formData: any;
   onNext: (data: any) => void;
@@ -9,73 +20,173 @@ interface Step1Props {
 }
 
 const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev }) => {
-  const [selectedUser, setSelectedUser] = useState(formData.selectedUser || null);
+  const { profile } = useUserStore();
+  const navigate = useNavigate();
 
-  // TODO: 실제 유저 데이터는 API를 통해 가져와야 합니다.
-  const users = [
-    { id: '1', name: "김순자", relation: "어머니", phone: "010-1234-5678" },
-    { id: '2', name: "홍길동", relation: "아버지", phone: "010-1234-5678" }
-  ];
+  const isSeniorUser = profile?.customerType === "senior";
 
-  const handleUserSelect = (user) => {
-    setSelectedUser(user.id);
+  // 등록된 가족(시니어) 목록
+  const parents = useMemo(() => profile?.registeredFamily ?? [], [profile]);
+
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
+    const idx = formData?.selectedUserIndex;
+    return typeof idx === "number" && idx >= 0 && idx < parents.length ? idx : null;
+  });
+
+  // ✅ onNext 중복 호출 방지 가드
+  const advancedRef = useRef(false);
+  const safeNext = (payload: any) => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    onNext(payload);
   };
 
-  const handleNextClick = () => {
-    if (selectedUser) {
-      onNext({ selectedUser: selectedUser });
-    } else {
-      // alert() 대신 커스텀 모달 사용
-      console.log("사용자를 선택해주세요.");
-    }
+  // ✅ 시니어 사용자: 본인 스냅샷으로 한 번만 자동 진행
+  //    - seniorId는 빈 문자열("")로 전달 → 백엔드에서 신청자 본인 uid로 처리
+  useEffect(() => {
+    if (!profile || !isSeniorUser) return;
+
+    safeNext({
+      selectedUserIndex: 0,
+      selectedUser: {
+        name: profile.nickname || profile.name || "이름없음",
+        phone: getPhone(profile),
+        relation: "본인",
+        birthdate: profile.birthdate || "",
+      },
+      isSelf: true,
+      seniorId: "", // ← 본인 예약: 서버에서 uid로 대체
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSeniorUser, profile]);
+
+  const handleSelect = (idx: number) => setSelectedIndex(idx);
+
+  // ✅ 가족(보호자) 예약: 선택된 가족의 memberId를 seniorId로 전달
+  const handleNext = () => {
+    if (selectedIndex === null) return;
+    const picked = parents[selectedIndex];
+
+    safeNext({
+      selectedUserIndex: selectedIndex,
+      selectedUser: {
+        name: picked?.nickname || picked?.name || "이름없음",
+        phone: getPhone(picked),
+        relation: picked?.relation || "관계 미입력",
+        birthdate: picked?.birthdate || "",
+      },
+      isSelf: false,
+      seniorId: String(getMemberId(picked) ?? ""), // ← 가족의 memberId 사용
+    });
   };
 
-  // onPrev는 Step1에서 사용되지 않으므로, ReservationProcess에서 뒤로가기 버튼 로직을 변경해야 합니다.
+  // ✅ 가족(보호자)이고 등록된 동행인(시니어)이 0명일 때: 두 가지 선택지 제공
+  //    1) 제가 이용할게요 → 본인으로 진행 (seniorId="")
+  //    2) 동행인을 추가할래요 → /parents/manage 이동
+  if (!isSeniorUser && parents.length === 0) {
+    return (
+      <div className="p-2 space-y-6">
+        <div>
+          <h2 className="text-xl font-bold">동행이 필요한 분 선택</h2>
+          <p className="mt-2 text-sm text-gray-600">등록된 가족이 없습니다.</p>
+        </div>
+
+        <div className="">
+          <p className="text-sm text-gray-700">
+            본인으로 예약하기 또는 가족 추가 후 예약을 진행해주세요.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Button
+              type="secondary"
+              buttonName="제가 이용할게요"
+              onClick={() =>
+                safeNext({
+                  selectedUserIndex: null,
+                  selectedUser: null,
+                  isSelf: true,
+                  seniorId: "", // ← 본인 처리
+                })
+              }
+              className="text-sm"
+            />
+            <Button
+              type="primary"
+              buttonName="가족을 추가할래요"
+              onClick={() => navigate("/parents/manage")}
+              className="text-sm"
+            />
+          </div>
+
+          <div className="mt-4 flex justify-between">
+            <Button type="primary" buttonName="이전" onClick={onPrev} className="w-full"/>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 시니어는 자동 진행 안내만 (위 useEffect에서 한 번만 onNext)
+  if (isSeniorUser) {
+    return <div className="p-6 text-center text-gray-600">본인 정보 확인 중입니다...</div>;
+  }
 
   return (
     <div className="p-0 space-y-4">
       <div className="p-4">
         <h2 className="text-xl font-bold mb-4">동행이 필요한 분은 누구인가요?</h2>
         <div className="space-y-3">
-          {users.map(user => (
-            <button
-              key={user.id}
-              onClick={() => handleUserSelect(user)}
-              className={`w-full text-left rounded-lg border-2 p-3 ${
-                selectedUser === user.id ? 'border-blue-500' : 'border-gray-200'
-              } hover:border-blue-400 transition-colors`}
-              aria-label={`${user.name} 선택`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                    </svg>
-                  </span>
-                  <div>
-                    <div className="font-bold flex items-center gap-1">
-                      {user.name}
-                      <span className="text-xs text-gray-500 font-normal">m</span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {user.relation} | 전화번호 {user.phone}
+          {parents.map((p: any, idx: number) => {
+            const active = selectedIndex === idx;
+            return (
+              <button
+                key={`${getPhone(p) || "no-phone"}-${idx}`}
+                onClick={() => handleSelect(idx)}
+                className={`w-full text-left rounded-lg border-2 p-3 ${
+                  active ? "border-blue-500" : "border-gray-200"
+                } hover:border-blue-400 transition-colors`}
+                aria-label={`${p?.nickname || p?.name || "이름없음"} 선택`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500">
+                      <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
+                      </svg>
+                    </span>
+                    <div>
+                      <div className="font-bold flex items-center gap-1">
+                        {p?.nickname || p?.name || "이름없음"}
+                        <span className="text-xs text-gray-500 font-normal">
+                          {p?.gender === "male" ? "M" : p?.gender === "female" ? "F" : ""}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {(p?.relation || "관계 미입력") + " | " + (getPhone(p) || "전화번호 없음")}
+                      </div>
                     </div>
                   </div>
+
+                  {active && (
+                    <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 2l2.39 1.2 2.67-.36 1.46 2.3 2.48 1.1-.5 2.64.5 2.64-2.48 1.1-1.46 2.3-2.67-.36L10 18l-2.39-1.2-2.67.36-1.46-2.3L1 13.56l.5-2.64L1 8.28l2.48-1.1 1.46-2.3 2.67.36L10 2zm-1 11l5-5-1.41-1.41L9 9.17 7.41 7.59 6 9l3 4z" />
+                    </svg>
+                  )}
                 </div>
-                {selectedUser === user.id && (
-                  <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 2l2.39 1.2 2.67-.36 1.46 2.3 2.48 1.1-.5 2.64.5 2.64-2.48 1.1-1.46 2.3-2.67-.36L10 18l-2.39-1.2-2.67.36-1.46-2.3L1 13.56l.5-2.64L1 8.28l2.48-1.1 1.46-2.3 2.67.36L10 2zm-1 11l5-5-1.41-1.41L9 9.17 7.41 7.59 6 9l3 4z" />
-                  </svg>
-                )}
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
+
       <div className="flex justify-between p-4 bg-gray-50">
-        <Button onClick={() => console.log('수정 기능 구현 필요')} buttonName="수정하기" type="secondary" />
-        <Button onClick={handleNextClick} buttonName="다음" type="primary" disabled={!selectedUser} />
+        <Button onClick={onPrev} buttonName="이전" type="secondary" />
+        <Button
+          onClick={handleNext}
+          buttonName="다음"
+          type="primary"
+          disabled={selectedIndex === null}
+        />
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
-import axios from "axios";
+// src/services/userApi.ts
+import api from "@/lib/api";
 import { ENDPOINTS } from "@/lib/endpoints";
-
-const BASE_URL = "https://ma-y-5usy.onrender.com";
 
 // 회원가입 요청 시 필요한 데이터 타입
 export interface RegisterPayload {
@@ -34,29 +33,18 @@ export interface UserProfile {
 
 // 회원가입 API 호출
 export const register = async (payload: RegisterPayload) => {
-  const url = `${BASE_URL}${ENDPOINTS.signupEmail}`;
-  const response = await axios.post(url, payload);
-  return response.data;
+  const { data } = await api.post(ENDPOINTS.signupEmail, payload);
+  return data;
 };
 
-// 로그인 API 호출 (토큰 저장 로직 제거)
+// 로그인 API 호출 (토큰은 Firebase SDK로 하거나, 서버 토큰 발급 시 그대로 반환)
 export const login = async (payload: LoginPayload) => {
-  const url = `${BASE_URL}${ENDPOINTS.login}`;
-  const response = await axios.post(url, payload);
-  return response.data; // 토큰을 반환
+  const { data } = await api.post(ENDPOINTS.login, payload);
+  return data;
 };
 
 // 사용자 정보 API 호출
-export const fetchUserProfile = async () => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    throw new Error("No authentication token found.");
-  }
-  const url = `${BASE_URL}${ENDPOINTS.profile}`;
-  const response = await axios.get<UserProfile>(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return response.data;
+export const fetchUserProfile = async (): Promise<UserProfile> => {
+  const { data } = await api.get<UserProfile>(ENDPOINTS.me);
+  return data;
 };

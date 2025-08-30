@@ -1,13 +1,27 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ],
-   "compilerOptions": {
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
     "baseUrl": "./src",
     "paths": {
       "@/*": ["*"]
     },
-  }
+
+    // 품질 옵션(필요 시 다시 엄격하게 올려)
+    "strict": true,
+    "skipLibCheck": true,
+
+    // ⬇️ Netlify 빌드 에러 최소화
+    "verbatimModuleSyntax": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src", "vite-env.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }

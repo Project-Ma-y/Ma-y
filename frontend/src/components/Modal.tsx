@@ -1,5 +1,6 @@
 // src/components/Modal.tsx
-import { ReactNode, useState } from "react";
+import type { ReactNode } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import Button from "@/components/button/Button";
 import { useUIStore } from "@/store/uiStore";

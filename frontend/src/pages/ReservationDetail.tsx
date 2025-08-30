@@ -1,55 +1,233 @@
 // src/pages/ReservationDetail.tsx
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import clsx from "clsx";
-import { Link } from "react-router-dom";
+import api from "@/lib/api"; // ✅ axios 인스턴스
+// import axios from "axios";  // ❌ 제거
+// import { auth as firebaseAuth } from "@/services/firebase"; // ❌ 컴포넌트에서 직접 토큰 안뽑음
 
-// 간단한 구분선 컴포넌트
-const Divider = () => <div className="h-0.5 bg-gray-100"></div>;
+// ===== Types =====
+interface SeniorProfile {
+  memberId?: string;
+  name?: string;
+  nickname?: string;
+  phone?: string;
+  phoneNumber?: string;
+  gender?: "male" | "female" | string;
+  birthdate?: string;
+  avatarUrl?: string;
+}
+
+interface BookingDetail {
+  userId: string;
+  familyId?: string;
+  seniorId?: string;
+  startBookingTime: string;
+  endBookingTime: string;
+  departureAddress: string;
+  destinationAddress: string;
+  roundTrip: boolean;
+  assistanceType: "guide" | "admin" | "shopping" | "other";
+  additionalRequests?: string;
+  userType: "family" | "senior";
+  status: "pending" | "completed" | "cancelled" | "ongoing";
+  price: number;
+  isPaid: boolean;
+  paymentMethod?: "card" | "cash" | "transfer";
+  paidAt?: string;
+  seniorProfile?: SeniorProfile;
+}
+
+// ===== UI helpers =====
+const Divider = () => <div className="h-0.5 bg-gray-100" />;
+
+const weekdayKo = ["일", "월", "화", "수", "목", "금", "토"];
+const toDateStr = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "-";
+  const y = d.getFullYear();
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  const w = weekdayKo[d.getDay()];
+  return `${y}.${m}.${day} (${w})`;
+};
+const toClock = (iso: string) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "-";
+  const h = d.getHours();
+  const m = `${d.getMinutes()}`.padStart(2, "0");
+  const ampm = h >= 12 ? "오후" : "오전";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${ampm} ${hh}:${m}`;
+};
+const formatDateTimeRange = (startISO: string, endISO: string) =>
+  `${toDateStr(startISO)} ${toClock(startISO)} ~ ${toClock(endISO)}`;
 
 export default function ReservationDetail() {
-  // 모의 데이터
-  const reservationDetails = {
-    status: "ongoing", // 'reserved' | 'ongoing' | 'finished' | 'canceled'
-    destination: "서울 아산병원",
-    departure: "자택(서울 강남구 00000)",
-    time: "오후 2:00 ~ 오후 4:00",
-    companion: {
-      name: "성 이름",
-      details: "정보, 한줄소개 또는 전화번호",
-    },
-    paymentAmount: "14,000",
-  };
+  const { id } = useParams<{ id: string }>();
+  const [reservationDetails, setReservationDetails] = useState<BookingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const statusMap = {
-    reserved: "예약확인",
-    ongoing: "동행 중",
-    finished: "동행 완료",
-    canceled: "예약 취소",
-  };
+  // ===== Fetch booking detail =====
+  useEffect(() => {
+    const fetchReservation = async () => {
+      if (!id) {
+        setError("Reservation ID is missing.");
+        setLoading(false);
+        return;
+      }
+      try {
+        // ✅ 토큰은 인터셉터에서 자동 부착
+        const response = await api.get(`/booking/${id}`);
+
+        // snake_case ↔ camelCase 매핑
+        const raw = response.data;
+        const normalized: BookingDetail = {
+          userId: raw.userId ?? raw.user_id,
+          familyId: raw.familyId ?? raw.family_id,
+          seniorId: raw.seniorId ?? raw.senior_id,
+          startBookingTime: raw.startBookingTime ?? raw.start_booking_time,
+          endBookingTime: raw.endBookingTime ?? raw.end_booking_time,
+          departureAddress: raw.departureAddress ?? raw.departure_address,
+          destinationAddress: raw.destinationAddress ?? raw.destination_address,
+          roundTrip: raw.roundTrip ?? raw.round_trip ?? false,
+          assistanceType: raw.assistanceType ?? raw.assistance_type ?? "other",
+          additionalRequests: raw.additionalRequests ?? raw.additional_requests,
+          userType: raw.userType ?? raw.user_type ?? "family",
+          status: raw.status ?? "pending",
+          price: raw.price ?? 0,
+          isPaid: raw.isPaid ?? raw.is_paid ?? false,
+          paymentMethod: raw.paymentMethod ?? raw.payment_method,
+          paidAt: raw.paidAt ?? raw.paid_at,
+          seniorProfile: raw.seniorProfile ?? raw.senior_profile,
+        };
+
+        setReservationDetails(normalized);
+      } catch (err: any) {
+        const msg =
+          err?.response?.status === 404
+            ? "예약을 찾을 수 없습니다."
+            : err?.response?.data?.message || "예약 정보를 불러오는데 실패했습니다.";
+        setError(msg);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReservation();
+  }, [id]);
+
+  const statusMap = useMemo(
+    () => ({
+      pending: "예약확인",
+      ongoing: "동행 중",
+      completed: "동행 완료",
+      cancelled: "예약 취소",
+    }),
+    []
+  );
+
+  const seniorName = useMemo(() => {
+    if (!reservationDetails?.seniorProfile) return "-";
+    const s = reservationDetails.seniorProfile;
+    return s.nickname || s.name || "이름없음";
+  }, [reservationDetails?.seniorProfile]);
+
+  const seniorPhone = useMemo(() => {
+    if (!reservationDetails?.seniorProfile) return "-";
+    const s = reservationDetails.seniorProfile;
+    return s.phone || s.phoneNumber || "-";
+  }, [reservationDetails?.seniorProfile]);
+
+  const seniorGender = useMemo(() => {
+    if (!reservationDetails?.seniorProfile?.gender) return "";
+    const g = reservationDetails.seniorProfile.gender;
+    return g === "male" ? "M" : g === "female" ? "F" : "";
+  }, [reservationDetails?.seniorProfile]);
+
+  if (loading) {
+    return (
+      <MainLayout headerProps={{ title: "예약 내역", showBack: true }} showNav={true}>
+        <div className="flex justify-center items-center h-[calc(100vh-80px)]">
+          <p>로딩 중...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout headerProps={{ title: "예약 내역", showBack: true }} showNav={true}>
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-80px)] text-center text-red-500 p-4">
+          <p>{error}</p>
+          <button
+            onClick={() => window.history.back()}
+            className="mt-4 px-4 py-2 bg-gray-200 rounded-md"
+          >
+            뒤로가기
+          </button>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!reservationDetails) {
+    return (
+      <MainLayout headerProps={{ title: "예약 내역", showBack: true }} showNav={true}>
+        <div className="flex justify-center items-center h-[calc(100vh-80px)]">
+          <p>예약 내역이 없습니다.</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout
       headerProps={{
-        title: "예약 내역 - 선택 시",
-        showBack: true,
+        type: "header-a",
+        title: "예약 내역",
       }}
-      showNav={true}
+      showNav={false}
     >
       <div className="flex flex-col space-y-4">
-        {/* 상단 탭 (진행 상태 표시) */}
+        {/* 진행 상태 */}
         <div className="flex w-full justify-between overflow-hidden rounded-2xl bg-gray-100 px-4 py-2 text-sm text-gray-400">
-          <div className="text-center">신청완료</div>
-          <div className="text-center">예약확인</div>
-          <div className="text-center">동행인 출발</div>
-          <div className="text-center text-[var(--color-primary)]">동행 중</div>
+          <div
+            className={clsx("text-center", {
+              "text-[var(--color-primary)]": reservationDetails.status === "pending",
+            })}
+          >
+            신청완료
+          </div>
+          <div
+            className={clsx("text-center", {
+              "text-[var(--color-primary)]": reservationDetails.status === "ongoing",
+            })}
+          >
+            동행 중
+          </div>
+          <div
+            className={clsx("text-center", {
+              "text-[var(--color-primary)]": reservationDetails.status === "completed",
+            })}
+          >
+            동행 완료
+          </div>
+          <div
+            className={clsx("text-center", {
+              "text-[var(--color-primary)]": reservationDetails.status === "cancelled",
+            })}
+          >
+            예약 취소
+          </div>
         </div>
 
         {/* 지도 섹션 */}
         <Card className="p-0">
           <div className="relative h-[200px] w-full overflow-hidden rounded-t-2xl bg-gray-200">
-            {/* 지도 이미지 플레이스홀더 */}
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-gray-500">
               지도 영역
             </span>
@@ -59,65 +237,118 @@ export default function ReservationDetail() {
           </Link>
         </Card>
 
-        {/* 동행 정보 섹션 */}
+        {/* 동행할 시니어 정보 */}
+        {reservationDetails.seniorProfile && (
+          <Card>
+            <div className="mb-4 text-base font-semibold text-gray-700">동행할 시니어</div>
+            <div className="flex items-center justify-between p-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200">
+                  {reservationDetails.seniorProfile.avatarUrl ? (
+                    <img
+                      src={reservationDetails.seniorProfile.avatarUrl}
+                      alt="avatar"
+                      className="h-12 w-12 object-cover"
+                    />
+                  ) : (
+                    <svg className="h-6 w-6 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
+                    </svg>
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="truncate text-base font-bold">{seniorName}</span>
+                    <span className="text-xs text-gray-500">{seniorGender}</span>
+                  </div>
+                  <div className="truncate text-xs text-gray-500">
+                    {seniorPhone}
+                    {reservationDetails.seniorProfile.birthdate
+                      ? ` · 생년월일 ${reservationDetails.seniorProfile.birthdate}`
+                      : ""}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* 동행 정보 */}
         <Card className="space-y-4">
           <h2 className="text-lg font-bold">동행 정보</h2>
           <div className="space-y-3">
             <div className="flex justify-between text-base">
               <span className="text-gray-500">동행 목적지</span>
-              <span className="font-semibold text-gray-800">{reservationDetails.destination}</span>
+              <span className="font-semibold text-gray-800">
+                {reservationDetails.destinationAddress}
+              </span>
             </div>
             <Divider />
             <div className="flex justify-between text-base">
               <span className="text-gray-500">출발지</span>
-              <span className="font-semibold text-gray-800">{reservationDetails.departure}</span>
+              <span className="font-semibold text-gray-800">
+                {reservationDetails.departureAddress}
+              </span>
             </div>
             <Divider />
+            {/* 동행 날짜 + 시간 */}
             <div className="flex justify-between text-base">
-              <span className="text-gray-500">동행 시간</span>
-              <span className="font-semibold text-gray-800">{reservationDetails.time}</span>
-            </div>
-          </div>
-        </Card>
-
-        {/* 동행인 섹션 */}
-        <Card>
-          <div className="mb-4 text-base font-semibold text-gray-700">동행인</div>
-          <div className="flex items-center justify-between p-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200">
-                <svg className="h-6 w-6 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
-                </svg>
+              <span className="text-gray-500">동행 일시</span>
+              <span className="font-semibold text-gray-800 text-right">
+                {formatDateTimeRange(
+                  reservationDetails.startBookingTime,
+                  reservationDetails.endBookingTime
+                )}
               </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="truncate text-base font-bold">{reservationDetails.companion.name} 동행인</span>
-                  <svg className="h-4 w-4 text-[#2F6BFF]" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10 2l2.39 1.2 2.67-.36 1.46 2.3 2.48 1.1-.5 2.64.5 2.64-2.48 1.1-1.46 2.3-2.67-.36L10 18l-2.39-1.2-2.67.36-1.46-2.3L1 13.56l.5-2.64L1 8.28l2.48-1.1 1.46-2.3 2.67.36L10 2zm-1 11l5-5-1.41-1.41L9 9.17 7.41 7.59 6 9l3 4z" />
-                  </svg>
-                </div>
-                <div className="truncate text-xs text-gray-500">{reservationDetails.companion.details}</div>
-              </div>
             </div>
-            <svg
-              className="h-5 w-5 text-gray-400"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
+            {reservationDetails.additionalRequests && (
+              <>
+                <Divider />
+                <div className="flex justify-between text-base">
+                  <span className="text-gray-500">추가 요청사항</span>
+                  <span className="font-semibold text-gray-800">
+                    {reservationDetails.additionalRequests}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
-        {/* 결제 금액 섹션 */}
-        <Card className="flex justify-between">
-          <span className="text-base font-bold text-gray-700">결제 금액</span>
-          <span className="text-lg font-extrabold text-gray-800">{reservationDetails.paymentAmount} 원</span>
+        {/* 결제/상태 요약 */}
+        <Card className="space-y-3">
+          <h2 className="text-lg font-bold">결제 및 상태</h2>
+          <div className="flex justify-between text-base">
+            <span className="text-gray-500">상태</span>
+            <span className="font-semibold text-gray-800">
+              {statusMap[reservationDetails.status] ?? "알 수 없음"}
+            </span>
+          </div>
+          <Divider />
+          <div className="flex justify-between text-base">
+            <span className="text-gray-500">총 금액</span>
+            <span className="font-semibold text-gray-800">
+              {reservationDetails.price?.toLocaleString()}원
+            </span>
+          </div>
+          <Divider />
+          <div className="flex justify-between text-base">
+            <span className="text-gray-500">결제 여부</span>
+            <span className="font-semibold text-gray-800">
+              {reservationDetails.isPaid ? "결제 대기" : "미결제"}
+            </span>
+          </div>
+          {reservationDetails.isPaid && reservationDetails.paidAt && (
+            <>
+              <Divider />
+              <div className="flex justify-between text-base">
+                <span className="text-gray-500">결제 일시</span>
+                <span className="font-semibold text-gray-800">
+                  {toDateStr(reservationDetails.paidAt)} {toClock(reservationDetails.paidAt)}
+                </span>
+              </div>
+            </>
+          )}
         </Card>
       </div>
     </MainLayout>
