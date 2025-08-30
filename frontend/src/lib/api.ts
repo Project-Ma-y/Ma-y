@@ -12,7 +12,7 @@ const BASE_URL = import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL as
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json", Accept: "application/json" },
-  withCredentials: false,
+  withCredentials: true,
 });
 
 // Firebase ID 토큰 자동 부착
@@ -23,7 +23,7 @@ api.interceptors.request.use(async (config) => {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
   }
-  config.withCredentials = false;
+  config.withCredentials = true;
   return config;
 });
 
@@ -39,7 +39,7 @@ api.interceptors.response.use(
         const fresh = await u.getIdToken();
         original.headers = original.headers ?? {};
         original.headers.Authorization = `Bearer ${fresh}`;
-        original.withCredentials = false;
+        original.withCredentials = true;
         return api.request(original);
       }
     }
