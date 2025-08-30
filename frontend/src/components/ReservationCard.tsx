@@ -3,12 +3,13 @@ import React from "react";
 import Card from "@/components/Card";
 import Button from "@/components/button/Button";
 import clsx from "clsx";
-import { Link } from "react-router-dom"; // Link 컴포넌트 임포트
+import { Link } from "react-router-dom";
+import { api } from "@/lib/api"; // ✅ axios 인스턴스
 
 type Status = "reserved" | "ongoing" | "finished";
 
 type ReservationCardProps = {
-  id: string; // 예약 ID를 props로 추가
+  id: string;
   status: Status;
   dateText: string;
   title: string;
@@ -24,7 +25,7 @@ const statusLabel: Record<Status, { text: string; className: string }> = {
 };
 
 export default function ReservationCard({
-  id, // props에서 id를 받음
+  id,
   status,
   dateText,
   title,
@@ -35,8 +36,15 @@ export default function ReservationCard({
   const s = statusLabel[status];
   const isReserved = status === "reserved";
 
+  const handleBookingLog = async () => {
+    try {
+      await api.get("/sessions/booking"); // ✅ 예약하기 버튼 누른 순간 로깅
+    } catch (err) {
+      console.error("예약하기 통계 로깅 실패:", err);
+    }
+  };
+
   return (
-    // Card 전체를 Link 컴포넌트로 감싸 클릭 시 상세 페이지로 이동하도록 설정
     <Link to={`/reservation/${id}`}>
       <Card className="relative space-y-4">
         {/* 우측 화살표 */}
@@ -54,7 +62,9 @@ export default function ReservationCard({
 
         {/* 상단 라벨 + 날짜 */}
         <div className="flex items-center gap-3 pr-8">
-          <span className={clsx("text-lg font-extrabold", s.className)}>{s.text}</span>
+          <span className={clsx("text-lg font-extrabold", s.className)}>
+            {s.text}
+          </span>
           <span className="text-lg text-gray-400">{dateText}</span>
         </div>
 
@@ -81,8 +91,9 @@ export default function ReservationCard({
             <Button
               type="primary"
               buttonName="예약확인"
-              onClick={(e) => {
-                e.preventDefault(); // Link의 기본 동작(페이지 이동) 방지
+              onClick={async (e) => {
+                e.preventDefault();
+                await handleBookingLog(); // ✅ 예약 확인 누른 순간 로깅
                 if (onConfirm) onConfirm();
               }}
               className="h-16 w-full rounded-3xl text-2xl"
@@ -91,7 +102,7 @@ export default function ReservationCard({
               type="secondary"
               buttonName="예약취소"
               onClick={(e) => {
-                e.preventDefault(); // Link의 기본 동작(페이지 이동) 방지
+                e.preventDefault();
                 if (onCancel) onCancel();
               }}
               className="h-16 w-full rounded-3xl text-2xl"
@@ -103,7 +114,7 @@ export default function ReservationCard({
               type="close"
               buttonName="예약 취소하기"
               onClick={(e) => {
-                e.preventDefault(); // Link의 기본 동작(페이지 이동) 방지
+                e.preventDefault();
                 if (onCancel) onCancel();
               }}
               className="h-16 w-full rounded-3xl text-2xl"

@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 import may1Url from "/assets/img/may_1.png";
 import may2Url from "/assets/img/may_2.png";
 import proLabelUrl from "/assets/img/pro_label.png";
+import { api } from "@/lib/api"; // ✅ axios 인스턴스
 
 export default function Home() {
   const nav = useNavigate();
@@ -32,6 +33,11 @@ export default function Home() {
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
+    // ✅ 메인 페이지 들어왔을 때 통계 로깅
+    api.get("/sessions/main").catch((err) =>
+      console.error("메인 화면 통계 로깅 실패:", err)
+    );
+
     banners.forEach((src) => {
       const img = new Image();
       img.src = src;
@@ -45,7 +51,7 @@ export default function Home() {
 
   return (
     <MainLayout headerProps={{ type: "default" }}>
-      {/* ✅ 고정 비율 배너 (16:9). 필요하면 '21 / 9' 또는 '4 / 3' 등으로 변경 */}
+      {/* 배너 */}
       <div
         className="relative w-full overflow-hidden rounded-2xl"
         style={{ aspectRatio: "16 / 9" }}
@@ -71,26 +77,41 @@ export default function Home() {
       <Card className="space-y-4">
         <div className="flex items-start gap-3">
           <span className="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-primary)]/15">
-            <svg className="h-4 w-4 text-[var(--color-primary)]" viewBox="0 0 24 24" fill="currentColor">
+            <svg
+              className="h-4 w-4 text-[var(--color-primary)]"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
               <path d="M7 2a1 1 0 0 0-1 1v1H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3h-1V3a1 1 0 1 0-2 0v1H8V3a1 1 0 0 0-1-1Zm13 7H4v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9Z" />
             </svg>
           </span>
           <div className="flex-1">
             <div className="text-lg font-extrabold">동행 예약하기</div>
-            <div className="mt-1 text-sm text-gray-500">꼭 필요한 정보들만 입력하세요!</div>
+            <div className="mt-1 text-sm text-gray-500">
+              꼭 필요한 정보들만 입력하세요!
+            </div>
           </div>
         </div>
         <Button
           type="primary"
           className="h-12 w-full rounded-2xl text-lg"
           buttonName="예약하기"
-          onClick={() => nav("/reservation")}
+          onClick={async () => {
+            try {
+              await api.get("/sessions/booking"); // ✅ 예약하기 버튼 클릭 시 로깅
+            } catch (err) {
+              console.error("예약하기 통계 로깅 실패:", err);
+            }
+            nav("/reservation");
+          }}
         />
       </Card>
 
       {/* 동행매니저 추천 */}
       <div className="space-y-3">
-        <div className="text-sm font-semibold text-gray-700">동행매니저 추천</div>
+        <div className="text-sm font-semibold text-gray-700">
+          동행매니저 추천
+        </div>
         {managers.map((m) => (
           <ManagerListItem
             key={m.id}
@@ -120,14 +141,27 @@ function ManagerListItem({
   onClick?: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} className="w-full text-left" aria-label={`${name} 프로필로 이동`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left"
+      aria-label={`${name} 프로필로 이동`}
+    >
       <Card className="flex items-center justify-between p-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 overflow-hidden">
             {avatarSrc ? (
-              <img src={avatarSrc} alt={`${name} 프로필`} className="h-full w-full object-cover" />
+              <img
+                src={avatarSrc}
+                alt={`${name} 프로필`}
+                className="h-full w-full object-cover"
+              />
             ) : (
-              <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                className="h-5 w-5 text-gray-500"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
               </svg>
             )}
