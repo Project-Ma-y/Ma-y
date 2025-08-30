@@ -7,15 +7,13 @@ import Card from "@/components/Card";
 import ReservationCard from "@/components/ReservationCard";
 import clsx from "clsx";
 import { getAuth, signOut } from "firebase/auth";
-import { api } from "@/lib/api"; // ✅ DELETE 요청에 사용
-
-const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
+import { api } from "@/lib/api"; // ✅ 단일 인스턴스
 
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";
 
 interface Reservation {
-  _id?: string; // ✅ _id 없을 수도 있으니 optional
-  id?: string;  // ✅ 혹시 id로 오는 경우도 대비
+  _id?: string;
+  id?: string;
   userId: string;
   familyId?: string;
   seniorId?: string;
@@ -67,10 +65,10 @@ const formatDateToText = (isoString: string): string => {
   return `${prefix} ${ampm} ${hh}:${mm}`;
 };
 
-// ✅ MyReservations와 동일하게: 안전한 ID 추출기
+// ✅ 안전한 ID 추출기
 const pickReservationId = (r: Reservation): string | undefined => r?._id ?? r?.id ?? undefined;
 
-// ✅ 상세 이동 핸들러(없으면 중단)
+// ✅ 상세 이동
 const goReservationDetail = (navigate: ReturnType<typeof useNavigate>, rid?: string) => {
   if (!rid) {
     console.error("[MyPage] 예약 상세 이동 실패: 유효한 예약 ID가 없습니다.");
@@ -89,7 +87,6 @@ export default function MyPage() {
     fetchUserProfile,
   } = useUserStore();
 
-  // 보호대상자 관리 페이지로 초기값 전달
   const openParentsManage = () => {
     if (!profile) return;
     const prefill = (profile.registeredFamily ?? []).map((p: any) => ({
@@ -113,24 +110,8 @@ export default function MyPage() {
   // ✅ 예약 취소
   const handleCancelReservation = async (rid: string) => {
     try {
-      const auth = getAuth();
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) throw new Error("로그인 필요");
-
-      const params: Record<string, any> = {};
-      // 서버 요구사항에 따라 mid가 필수면 아래 주석 해제해서 적용
-      // const mid = (profile?.registeredFamily?.[0]?.memberId as string) || undefined;
-      // if (mid) params.mid = mid;
-
-      await api.delete(`/booking/${rid}`, {
-        params,
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true, // 쿠키 포함
-      });
-
-      // 로컬 목록에서 제거
+      await api.delete(`/booking/${rid}`); // 인터셉터에서 토큰/쿠키 처리
       setReservations((prev) => prev.filter((r) => (r._id ?? r.id) !== rid));
-
       setCancelModalMsg("예약이 취소되었습니다.");
       setIsCancelModalOpen(true);
     } catch (error) {
@@ -145,32 +126,16 @@ export default function MyPage() {
       const run = async () => {
         setIsResLoading(true);
         try {
-          const auth = getAuth();
-          const current = auth.currentUser;
-          if (!current) {
-            setReservations([]);
-            return;
-          }
-          const token = await current.getIdToken();
-          const resp = await fetch(`${BASE_URL}/my`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-          });
-          if (!resp.ok) {
-            setReservations([]);
-            return;
-          }
-          const data: Reservation[] = await resp.json();
-          const sorted = (Array.isArray(data) ? data : []).sort(
+          const { data } = await api.get<Reservation[]>("/booking/my"); // ✅ api.ts 사용
+          const list = Array.isArray(data) ? data : [];
+          const sorted = [...list].sort(
             (a, b) =>
-              new Date(b.startBookingTime).getTime() - new Date(a.startBookingTime).getTime()
+              new Date(b.startBookingTime).getTime() -
+              new Date(a.startBookingTime).getTime()
           );
           setReservations(sorted);
-        } catch {
+        } catch (e) {
+          console.error("[MyPage] 예약 목록 로드 실패:", e);
           setReservations([]);
         } finally {
           setIsResLoading(false);
@@ -241,15 +206,10 @@ export default function MyPage() {
 
     const profileName = profile.name;
     const isFamilyUser = profile.customerType === "family";
-    const isSeniorUser = profile.customerType === "senior";
-
     const seniorsList: any[] = Array.isArray(profile.registeredFamily)
       ? profile.registeredFamily
       : [];
     const hasSeniors = seniorsList.length > 0;
-
-    const isGuardian =
-      profile.role === "guardian" || profile.customerType === "family";
 
     return (
       <>
@@ -271,7 +231,11 @@ export default function MyPage() {
         <Card className="flex items-center gap-4 p-4">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 overflow-hidden">
             {profile.profileImage ? (
-              <img src={profile.profileImage} alt="Profile" className="h-16 w-16 rounded-full object-cover" />
+              <img
+                src={profile.profileImage}
+                alt="Profile"
+                className="h-16 w-16 rounded-full object-cover"
+              />
             ) : (
               <svg className="h-10 w-10 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
@@ -284,9 +248,18 @@ export default function MyPage() {
               <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">
                 {isFamilyUser ? "보호자" : "시니어"}
               </span>
-              <Link to="/profile/edit" className="flex items-center text-gray-500 ml-auto cursor-pointer text-sm">
+              <Link
+                to="/profile/edit"
+                className="flex items-center text-gray-500 ml-auto cursor-pointer text-sm"
+              >
                 <span className="mr-1">수정하기</span>
-                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-5 w-5 text-gray-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" />
                 </svg>
               </Link>
@@ -371,7 +344,7 @@ export default function MyPage() {
             </div>
           ) : recentReservation ? (
             (() => {
-              const rid = pickReservationId(recentReservation); // ✅ 안전 추출
+              const rid = pickReservationId(recentReservation);
               return rid ? (
                 <ReservationCard
                   id={rid}
@@ -380,7 +353,7 @@ export default function MyPage() {
                   title={`${recentReservation.destinationAddress} 방문`}
                   companionText={"매칭 대기중"}
                   onConfirm={() => goReservationDetail(navigate, rid)}
-                  onCancel={() => handleCancelReservation(rid)}  // ✅ 취소 → 모달
+                  onCancel={() => handleCancelReservation(rid)}
                 />
               ) : (
                 <Card className="p-4 border border-red-200">
@@ -430,41 +403,43 @@ export default function MyPage() {
 
         <div className="mt-6 space-y-3">
           <div className="text-sm font-semibold text-gray-700">가이드</div>
-          {guideItems.map((item, index) => (
-            <div
-              key={index}
-              className={clsx("flex items-center justify-between py-4", {
-                "border-b border-gray-200": item.path,
-              })}
-            >
-              {item.path ? (
-                <Link to={item.path} className="flex-1">
-                  <span className="text-base font-semibold text-gray-700">
+          {[
+            ...guideItems.map((item, index) => (
+              <div
+                key={index}
+                className={clsx("flex items-center justify-between py-4", {
+                  "border-b border-gray-200": item.path,
+                })}
+              >
+                {item.path ? (
+                  <Link to={item.path} className="flex-1">
+                    <span className="text-base font-semibold text-gray-700">
+                      {item.label}
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="flex-1 text-base font-semibold text-gray-700">
                     {item.label}
                   </span>
-                </Link>
-              ) : (
-                <span className="flex-1 text-base font-semibold text-gray-700">
-                  {item.label}
-                </span>
-              )}
-              {item.version ? (
-                <span className="text-sm text-gray-400">{item.version}</span>
-              ) : (
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              )}
-            </div>
-          ))}
+                )}
+                {item.version ? (
+                  <span className="text-sm text-gray-400">{item.version}</span>
+                ) : (
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                )}
+              </div>
+            )),
+          ]}
         </div>
 
         <div className="mt-6">
