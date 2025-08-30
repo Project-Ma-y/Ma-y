@@ -21,7 +21,7 @@
       const token = localStorage.getItem("idToken");
       const uid = localStorage.getItem("uid");
 
-      if (!token || !uid) {
+      if (!token) {
         document.getElementById("result").textContent = "⚠️ localStorage에 token/uid가 없습니다.";
         return;
       }
