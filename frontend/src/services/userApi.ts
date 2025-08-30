@@ -1,5 +1,5 @@
 // src/services/userApi.ts
-import api from "@/lib/api";
+import { api } from "@/lib/api";
 import { ENDPOINTS } from "@/lib/endpoints";
 
 export interface RegisterPayload {

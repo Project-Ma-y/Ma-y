@@ -5,7 +5,7 @@ import MainLayout from "@/layouts/MainLayout";
 import { useNavigate } from "react-router-dom";
 import ReservationCard from "@/components/ReservationCard";
 import { useUserStore } from "@/store/userStore";
-import api from "@/lib/api"; // ✅ 단일 인스턴스 사용
+import { api } from "@/lib/api"; // ✅ 단일 인스턴스 사용
 import { getAuth } from "firebase/auth";
 
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";

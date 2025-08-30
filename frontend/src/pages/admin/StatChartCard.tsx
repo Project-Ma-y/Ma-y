@@ -11,13 +11,12 @@ import {
   Legend,
 } from "recharts";
 import Card from "@/components/Card";
-import { api } from "@/lib/axios";
+import { api, normalizeEndpoint } from "@/lib/axios";
 
 type RawRow = {
   date: string; // "YYYY-MM-DD"
   sessions: number;
   totalSessions: number;
-  // one of the below (endpoint별 상이)
   signupSessions?: number;
   totalSignupSessions?: number;
   reachApplypageSessions?: number;
@@ -34,35 +33,21 @@ type ChartRow = {
 
 type Props = {
   title: string;
-  endpoint: string;
+  endpoint: string; // 반드시 "/stats/..." 형태 (앞 /api 금지)
 };
 
-function mmdd(d: string) {
-  // d: "YYYY-MM-DD" → "MM-DD"
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-  return d.slice(5);
-}
+const mmdd = (d: string) => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : d);
 
 function pickKeys(row: RawRow) {
   if ("signupSessions" in row || "totalSignupSessions" in row) {
-    return {
-      dailyKey: "signupSessions" as const,
-      totalKey: "totalSignupSessions" as const,
-    };
+    return { dailyKey: "signupSessions" as const, totalKey: "totalSignupSessions" as const };
   }
   if ("reachApplypageSessions" in row || "totalReachApplypageSessions" in row) {
-    return {
-      dailyKey: "reachApplypageSessions" as const,
-      totalKey: "totalReachApplypageSessions" as const,
-    };
+    return { dailyKey: "reachApplypageSessions" as const, totalKey: "totalReachApplypageSessions" as const };
   }
   if ("applyCompleteSessions" in row || "totalApplyCompleteSessions" in row) {
-    return {
-      dailyKey: "applyCompleteSessions" as const,
-      totalKey: "totalApplyCompleteSessions" as const,
-    };
+    return { dailyKey: "applyCompleteSessions" as const, totalKey: "totalApplyCompleteSessions" as const };
   }
-  // fallback (없으면 에러 처리)
   return null;
 }
 
@@ -75,25 +60,18 @@ export default function StatChartCard({ title, endpoint }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get(endpoint, { withCredentials: true });
+      const ep = normalizeEndpoint(endpoint);
+      const res = await api.get(ep); // withCredentials + 토큰 자동
 
-      // ✅ 숫자 단일 응답 대비 (백엔드가 float만 주는 경우)
       if (typeof res.data === "number") {
         const value = Math.round(res.data * 100);
-        setData([
-          {
-            date: title.split(" ")[0] ?? "value",
-            daily: value,
-            cumulative: value,
-          },
-        ]);
+        setData([{ date: title.split(" ")[0] ?? "value", daily: value, cumulative: value }]);
         return;
       }
 
-      // ✅ 배열 응답 처리
       if (Array.isArray(res.data)) {
         const rows: RawRow[] = res.data;
-        if (rows.length === 0) {
+        if (!rows.length) {
           setData([]);
           return;
         }
@@ -106,26 +84,15 @@ export default function StatChartCard({ title, endpoint }: Props) {
         }
 
         const chartRows: ChartRow[] = rows.map((r) => {
-          const dailyNumerator = (r as any)[keys.dailyKey] ?? 0;
-          const dailyDenominator = r.sessions ?? 0;
-          const cumNumerator = (r as any)[keys.totalKey] ?? 0;
-          const cumDenominator = r.totalSessions ?? 0;
+          const dailyNum = (r as any)[keys.dailyKey] ?? 0;
+          const dailyDen = r.sessions ?? 0;
+          const cumNum = (r as any)[keys.totalKey] ?? 0;
+          const cumDen = r.totalSessions ?? 0;
 
-          const dailyPct =
-            dailyDenominator > 0
-              ? Math.round((dailyNumerator / dailyDenominator) * 100)
-              : 0;
+          const dailyPct = dailyDen > 0 ? Math.round((dailyNum / dailyDen) * 100) : 0;
+          const cumulativePct = cumDen > 0 ? Math.round((cumNum / cumDen) * 100) : 0;
 
-          const cumulativePct =
-            cumDenominator > 0
-              ? Math.round((cumNumerator / cumDenominator) * 100)
-              : 0;
-
-          return {
-            date: mmdd(r.date),
-            daily: dailyPct,
-            cumulative: cumulativePct,
-          };
+          return { date: mmdd(r.date), daily: dailyPct, cumulative: cumulativePct };
         });
 
         setData(chartRows);
@@ -134,9 +101,13 @@ export default function StatChartCard({ title, endpoint }: Props) {
 
       setError("데이터 형식이 올바르지 않습니다.");
       setData([]);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError("데이터를 불러오는데 실패했습니다.");
+      const msg =
+        e?.response?.status === 404
+          ? "엔드포인트가 존재하지 않습니다 (404). endpoint 값을 확인하세요."
+          : e?.message || "데이터를 불러오는데 실패했습니다.";
+      setError(msg);
       setData([]);
     } finally {
       setLoading(false);
@@ -154,73 +125,29 @@ export default function StatChartCard({ title, endpoint }: Props) {
     <Card className="p-4 h-80 flex flex-col">
       <h3 className="font-bold">{title}</h3>
       <div className="flex-grow mt-4">
-        {loading && (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            로딩 중...
-          </div>
-        )}
-        {error && (
-          <div className="flex items-center justify-center h-full text-red-500">
-            {error}
-          </div>
-        )}
+        {loading && <div className="flex items-center justify-center h-full text-gray-500">로딩 중...</div>}
+        {error && <div className="flex items-center justify-center h-full text-red-500">{error}</div>}
+
         {!loading && !error && hasData && (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
-            >
+            <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="date"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                unit="%"
-                domain={[0, 100]}
-              />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
               <Tooltip
                 cursor={{ fill: "rgba(239, 246, 255, 0.5)" }}
-                contentStyle={{
-                  fontSize: "12px",
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                  border: "1px solid #e5e7eb",
-                }}
+                contentStyle={{ fontSize: "12px", padding: "4px 8px", borderRadius: "6px", border: "1px solid #e5e7eb" }}
                 formatter={(value: any) => [`${value}%`, ""]}
               />
-              <Legend
-                wrapperStyle={{ fontSize: 12 }}
-                iconType="circle"
-                verticalAlign="top"
-                height={24}
-              />
-              {/* 일별 전환율 */}
-              <Bar
-                dataKey="daily"
-                name="일별 전환율"
-                fill="#3b82f6"
-                radius={[4, 4, 0, 0]}
-              />
-              {/* 누적 전환율 */}
-              <Bar
-                dataKey="cumulative"
-                name="누적 전환율"
-                fill="#10b981"
-                radius={[4, 4, 0, 0]}
-              />
+              <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" verticalAlign="top" height={24} />
+              <Bar dataKey="daily" name="일별 전환율" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="cumulative" name="누적 전환율" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
+
         {!loading && !error && !hasData && (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            표시할 데이터가 없습니다.
-          </div>
+          <div className="flex items-center justify-center h-full text-gray-400">표시할 데이터가 없습니다.</div>
         )}
       </div>
     </Card>

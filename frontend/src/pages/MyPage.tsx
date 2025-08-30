@@ -7,7 +7,7 @@ import Card from "@/components/Card";
 import ReservationCard from "@/components/ReservationCard";
 import clsx from "clsx";
 import { getAuth, signOut } from "firebase/auth";
-import api from "@/lib/api"; // ✅ DELETE 요청에 사용
+import { api } from "@/lib/api"; // ✅ DELETE 요청에 사용
 
 const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
 

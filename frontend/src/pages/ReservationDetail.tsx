@@ -1,12 +1,11 @@
 // src/pages/ReservationDetail.tsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import clsx from "clsx";
-import api from "@/lib/api"; // ✅ axios 인스턴스
-// import axios from "axios";  // ❌ 제거
-// import { auth as firebaseAuth } from "@/services/firebase"; // ❌ 컴포넌트에서 직접 토큰 안뽑음
+import { api } from "@/lib/api";
+import { loadNaverMap } from "@/utils/loadNaverMap"; // ✅ 지도 SDK 로더 추가
 
 // ===== Types =====
 interface SeniorProfile {
@@ -38,6 +37,10 @@ interface BookingDetail {
   paymentMethod?: "card" | "cash" | "transfer";
   paidAt?: string;
   seniorProfile?: SeniorProfile;
+
+  // (선택) 좌표가 백엔드에서 올 수도 있음
+  departureCoord?: { lat: number; lng: number } | null;
+  destinationCoord?: { lat: number; lng: number } | null;
 }
 
 // ===== UI helpers =====
@@ -65,6 +68,141 @@ const toClock = (iso: string) => {
 const formatDateTimeRange = (startISO: string, endISO: string) =>
   `${toDateStr(startISO)} ${toClock(startISO)} ~ ${toClock(endISO)}`;
 
+/** ===== 지도 섹션 컴포넌트 ===== */
+function MapSection({
+  departureAddress,
+  destinationAddress,
+  departureCoord,
+  destinationCoord,
+}: {
+  departureAddress: string;
+  destinationAddress: string;
+  departureCoord?: { lat: number; lng: number } | null;
+  destinationCoord?: { lat: number; lng: number } | null;
+}) {
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapObj = useRef<any>(null);
+  const depMarkerRef = useRef<any>(null);
+  const dstMarkerRef = useRef<any>(null);
+  const lineRef = useRef<any>(null);
+
+  // 주소 → 좌표 변환
+  const geocode = (q: string): Promise<{ lat: number; lng: number } | null> =>
+    new Promise((resolve) => {
+      const { naver } = window as any;
+      if (!q?.trim()) return resolve(null);
+      // query 우선, 실패 시 address로 한 번 더
+      const tryOnce = (opts: any) =>
+        new Promise<any[]>((res) =>
+          naver.maps.Service.geocode(opts, (status: any, resp: any) => {
+            if (status !== naver.maps.Service.Status.OK) return res([]);
+            res(resp?.v2?.addresses ?? []);
+          })
+        );
+
+      (async () => {
+        let list = await tryOnce({ query: q });
+        if (!list.length) list = await tryOnce({ address: q });
+        if (!list.length) return resolve(null);
+        const v = list[0];
+        resolve({ lat: Number(v.y), lng: Number(v.x) });
+      })();
+    });
+
+  useEffect(() => {
+    let cleanup: any;
+
+    (async () => {
+      await loadNaverMap();
+      const { naver } = window as any;
+
+      // 초기 중심 (서울 시청 근처)
+      const center = new naver.maps.LatLng(37.5666805, 126.9784147);
+      const map = new naver.maps.Map(mapRef.current!, {
+        center,
+        zoom: 14,
+        scaleControl: false,
+        logoControl: false,
+        mapDataControl: false,
+      });
+      mapObj.current = map;
+
+      const ensureCoords = async () => {
+        const dep =
+          departureCoord ??
+          (await geocode(departureAddress).catch(() => null));
+        const dst =
+          destinationCoord ??
+          (await geocode(destinationAddress).catch(() => null));
+        return { dep, dst };
+      };
+
+      const { dep, dst } = await ensureCoords();
+
+      // 마커/경계/선
+      const iconBlue =
+        '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>';
+      const iconGreen =
+        '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>';
+
+      if (dep) {
+        depMarkerRef.current = new naver.maps.Marker({
+          position: new naver.maps.LatLng(dep.lat, dep.lng),
+          map,
+          icon: { content: iconBlue, anchor: new naver.maps.Point(20, 20) },
+        });
+      }
+      if (dst) {
+        dstMarkerRef.current = new naver.maps.Marker({
+          position: new naver.maps.LatLng(dst.lat, dst.lng),
+          map,
+          icon: { content: iconGreen, anchor: new naver.maps.Point(20, 20) },
+        });
+      }
+
+      // 두 지점이 모두 있으면 경계 맞추기 + 라인
+      if (dep && dst) {
+        const bounds = new naver.maps.LatLngBounds(
+          new naver.maps.LatLng(dep.lat, dep.lng),
+          new naver.maps.LatLng(dst.lat, dst.lng)
+        );
+        map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+
+        lineRef.current = new naver.maps.Polyline({
+          map,
+          path: [
+            new naver.maps.LatLng(dep.lat, dep.lng),
+            new naver.maps.LatLng(dst.lat, dst.lng),
+          ],
+          strokeWeight: 4,
+          strokeOpacity: 0.7,
+          strokeColor: "#2563eb",
+        });
+      } else if (dep) {
+        map.setCenter(new naver.maps.LatLng(dep.lat, dep.lng));
+      } else if (dst) {
+        map.setCenter(new naver.maps.LatLng(dst.lat, dst.lng));
+      }
+
+      cleanup = () => {
+        depMarkerRef.current && depMarkerRef.current.setMap(null);
+        dstMarkerRef.current && dstMarkerRef.current.setMap(null);
+        lineRef.current && lineRef.current.setMap(null);
+        mapObj.current = null;
+      };
+    })();
+
+    return () => cleanup && cleanup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departureAddress, destinationAddress, departureCoord, destinationCoord]);
+
+  return (
+    <div className="relative h-[220px] w-full overflow-hidden rounded-t-2xl bg-gray-200">
+      <div ref={mapRef} className="absolute inset-0" />
+    </div>
+  );
+}
+
 export default function ReservationDetail() {
   const { id } = useParams<{ id: string }>();
   const [reservationDetails, setReservationDetails] = useState<BookingDetail | null>(null);
@@ -80,7 +218,6 @@ export default function ReservationDetail() {
         return;
       }
       try {
-        // ✅ 토큰은 인터셉터에서 자동 부착
         const response = await api.get(`/booking/${id}`);
 
         // snake_case ↔ camelCase 매핑
@@ -103,6 +240,8 @@ export default function ReservationDetail() {
           paymentMethod: raw.paymentMethod ?? raw.payment_method,
           paidAt: raw.paidAt ?? raw.paid_at,
           seniorProfile: raw.seniorProfile ?? raw.senior_profile,
+          departureCoord: raw.departureCoord ?? raw.departure_coord ?? null,
+          destinationCoord: raw.destinationCoord ?? raw.destination_coord ?? null,
         };
 
         setReservationDetails(normalized);
@@ -227,11 +366,12 @@ export default function ReservationDetail() {
 
         {/* 지도 섹션 */}
         <Card className="p-0">
-          <div className="relative h-[200px] w-full overflow-hidden rounded-t-2xl bg-gray-200">
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-sm text-gray-500">
-              지도 영역
-            </span>
-          </div>
+          <MapSection
+            departureAddress={reservationDetails.departureAddress}
+            destinationAddress={reservationDetails.destinationAddress}
+            departureCoord={reservationDetails.departureCoord}
+            destinationCoord={reservationDetails.destinationCoord}
+          />
           <Link to="#" className="flex justify-end p-4 text-[var(--color-primary)]">
             <span className="text-sm font-semibold">실시간 위치보기</span>
           </Link>

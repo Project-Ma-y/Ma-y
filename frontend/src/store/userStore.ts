@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { User } from "firebase/auth";
-import api from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface UserState {
   user: User | null;

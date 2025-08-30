@@ -1,5 +1,5 @@
 // src/services/userApi.ts
-import api from "@/lib/api";
+import { api } from "@/lib/api";
 import { ENDPOINTS } from "@/lib/endpoints";
 
 // 회원가입 요청 시 필요한 데이터 타입
