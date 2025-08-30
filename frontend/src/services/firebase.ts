@@ -12,7 +12,6 @@ const firebaseConfig = {
   appId: "1:527237934658:web:a6351a12ea9f9de13007db",
   measurementId: "G-VQWRV48PQF"
 };
-
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig); // 'export' 키워드 추가
 

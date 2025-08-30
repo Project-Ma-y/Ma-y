@@ -1,7 +1,7 @@
 import axios from "axios";
 import { ENDPOINTS } from "@/lib/endpoints";
 
-const BASE_URL = "https://ma-y-5usy.onrender.com";
+const BASE_URL = "https://api.mayservice.co.kr";
 
 // 회원가입 요청 시 필요한 데이터 타입
 export interface RegisterPayload {

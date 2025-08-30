@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { User } from "firebase/auth";
 
-const API_BASE_URL = "https://ma-y-5usy.onrender.com/api/users";
+const API_BASE_URL = "https://api.mayservice.co.kr/api/users";
 
 interface UserState {
   user: User | null;
