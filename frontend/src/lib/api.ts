@@ -15,7 +15,6 @@ const BASE_URL =
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json", Accept: "application/json" },
-  // 쿠키 세션 안 쓰고 Firebase Bearer 토큰만 쓸 거면 false 유지
   withCredentials: false,
 });
 
