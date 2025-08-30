@@ -1,14 +1,12 @@
 // src/components/maps/NaverMapPicker.tsx
 import { useEffect, useRef, useState } from "react";
 import { loadNaverMap } from "@/utils/loadNaverMap";
+import SearchSelectBox from "./SearchSelectBox";
 
 type Coord = { lat: number; lng: number };
-type Place = {
-  coord: Coord | null;
-  address: string;
-};
+type Place = { coord: Coord | null; address: string };
 
-interface NaverMapPickerProps {
+interface Props {
   initialDeparture?: Place;
   initialDestination?: Place;
   onChange: (data: { departure: Place; destination: Place }) => void;
@@ -18,11 +16,11 @@ export default function NaverMapPicker({
   initialDeparture,
   initialDestination,
   onChange,
-}: NaverMapPickerProps) {
-  const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapObj = useRef<any>(null);
-  const depMarkerRef = useRef<any>(null);
-  const dstMarkerRef = useRef<any>(null);
+}: Props) {
+  const mapEl = useRef<HTMLDivElement | null>(null);
+  const map = useRef<any>(null);
+  const depMarker = useRef<any>(null);
+  const dstMarker = useRef<any>(null);
 
   const [selectMode, setSelectMode] = useState<"departure" | "destination">("departure");
   const [departure, setDeparture] = useState<Place>(
@@ -32,129 +30,8 @@ export default function NaverMapPicker({
     initialDestination ?? { coord: null, address: "" }
   );
 
-  // reverse geocode helper
-  const fetchAddress = (lat: number, lng: number): Promise<string> => {
-    return new Promise((resolve) => {
-      const { naver } = window as any;
-      naver.maps.Service.reverseGeocode(
-        {
-          coords: new naver.maps.LatLng(lat, lng),
-        },
-        (status: any, response: any) => {
-          if (status !== naver.maps.Service.Status.OK) {
-            resolve("");
-            return;
-          }
-          const result = response.v2?.addresses?.[0];
-          // 도로명 or 지번 가독성 우선순위
-          const addr =
-            result?.roadAddress || result?.jibunAddress || result?.englishAddress || "";
-          resolve(addr);
-        }
-      );
-    });
-  };
-
-  useEffect(() => {
-    let detachClick: any;
-
-    (async () => {
-      await loadNaverMap();
-
-      const { naver } = window as any;
-
-      // 초기 중심점 (서울 시청 근처)
-      const center = initialDeparture?.coord
-        ? new naver.maps.LatLng(initialDeparture.coord.lat, initialDeparture.coord.lng)
-        : new naver.maps.LatLng(37.5666805, 126.9784147);
-
-      const map = new naver.maps.Map(mapRef.current!, {
-        center,
-        zoom: 15,
-        scaleControl: false,
-        logoControl: false,
-        mapDataControl: false,
-      });
-      mapObj.current = map;
-
-      // 기존 값이 있으면 마커 표시
-      if (initialDeparture?.coord) {
-        depMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(
-            initialDeparture.coord.lat,
-            initialDeparture.coord.lng
-          ),
-          map,
-          icon: {
-            content:
-              '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>',
-            anchor: new naver.maps.Point(20, 20),
-          },
-        });
-      }
-      if (initialDestination?.coord) {
-        dstMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(
-            initialDestination.coord.lat,
-            initialDestination.coord.lng
-          ),
-          map,
-          icon: {
-            content:
-              '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>',
-            anchor: new naver.maps.Point(20, 20),
-          },
-        });
-      }
-
-      // 클릭 시 선택 모드에 따라 마커/주소 설정
-      const clickListener = naver.maps.Event.addListener(map, "click", async (e: any) => {
-        const lat = e.coord.y;
-        const lng = e.coord.x;
-
-        const address = await fetchAddress(lat, lng);
-
-        if (selectMode === "departure") {
-          setDeparture({ coord: { lat, lng }, address });
-          if (!depMarkerRef.current) {
-            depMarkerRef.current = new naver.maps.Marker({
-              position: new naver.maps.LatLng(lat, lng),
-              map,
-              icon: {
-                content:
-                  '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>',
-                anchor: new naver.maps.Point(20, 20),
-              },
-            });
-          } else {
-            depMarkerRef.current.setPosition(new naver.maps.LatLng(lat, lng));
-          }
-        } else {
-          setDestination({ coord: { lat, lng }, address });
-          if (!dstMarkerRef.current) {
-            dstMarkerRef.current = new naver.maps.Marker({
-              position: new naver.maps.LatLng(lat, lng),
-              map,
-              icon: {
-                content:
-                  '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>',
-                anchor: new naver.maps.Point(20, 20),
-              },
-            });
-          } else {
-            dstMarkerRef.current.setPosition(new naver.maps.LatLng(lat, lng));
-          }
-        }
-      });
-
-      detachClick = () => naver.maps.Event.removeListener(clickListener);
-    })();
-
-    return () => {
-      if (detachClick) detachClick();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 지도 중심좌표 (검색 가중치용)
+  const [mapCenter, setMapCenter] = useState<Coord | undefined>(undefined);
 
   // 상위로 변경 통지
   useEffect(() => {
@@ -162,58 +39,164 @@ export default function NaverMapPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [departure, destination]);
 
+  // 역지오코딩
+  const reverse = async (lat: number, lng: number): Promise<string> =>
+    new Promise((resolve) => {
+      const { naver } = window as any;
+      naver.maps.Service.reverseGeocode(
+        { coords: new naver.maps.LatLng(lat, lng) },
+        (status: any, resp: any) => {
+          if (status !== naver.maps.Service.Status.OK) return resolve("");
+          const r = resp.v2?.addresses?.[0];
+          resolve(r?.roadAddress || r?.jibunAddress || r?.englishAddress || "");
+        }
+      );
+    });
+
+  // 마커 설정 헬퍼
+  const setMarker = (which: "dep" | "dst", lat: number, lng: number) => {
+    const { naver } = window as any;
+    const pos = new naver.maps.LatLng(lat, lng);
+    const iconBlue =
+      '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>';
+    const iconGreen =
+      '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>';
+
+    if (which === "dep") {
+      if (!depMarker.current) {
+        depMarker.current = new naver.maps.Marker({
+          position: pos,
+          map: map.current,
+          icon: { content: iconBlue, anchor: new naver.maps.Point(20, 20) },
+        });
+      } else depMarker.current.setPosition(pos);
+    } else {
+      if (!dstMarker.current) {
+        dstMarker.current = new naver.maps.Marker({
+          position: pos,
+          map: map.current,
+          icon: { content: iconGreen, anchor: new naver.maps.Point(20, 20) },
+        });
+      } else dstMarker.current.setPosition(pos);
+    }
+  };
+
+  // 지도 준비
+  useEffect(() => {
+    let detachClick: any, detachIdle: any;
+
+    (async () => {
+      await loadNaverMap();
+      const { naver } = window as any;
+
+      const initCenter = new naver.maps.LatLng(
+        initialDeparture?.coord?.lat ?? 37.5666805,
+        initialDeparture?.coord?.lng ?? 126.9784147
+      );
+
+      map.current = new naver.maps.Map(mapEl.current!, {
+        center: initCenter,
+        zoom: 15,
+        scaleControl: false,
+        logoControl: false,
+        mapDataControl: false,
+      });
+
+      // 최초 center 세팅
+      const c0 = map.current.getCenter();
+      setMapCenter({ lat: c0.y, lng: c0.x });
+
+      // idle 시 center 추적
+      detachIdle = naver.maps.Event.addListener(map.current, "idle", () => {
+        const c = map.current.getCenter();
+        setMapCenter({ lat: c.y, lng: c.x });
+      });
+
+      // 초기 값 마커 표시
+      if (initialDeparture?.coord)
+        setMarker("dep", initialDeparture.coord.lat, initialDeparture.coord.lng);
+      if (initialDestination?.coord)
+        setMarker("dst", initialDestination.coord.lat, initialDestination.coord.lng);
+
+      // 지도 클릭으로 선택
+      const h = naver.maps.Event.addListener(map.current, "click", async (e: any) => {
+        const lat = e.coord.y;
+        const lng = e.coord.x;
+        const address = await reverse(lat, lng);
+
+        if (selectMode === "departure") {
+          setDeparture({ coord: { lat, lng }, address });
+          setMarker("dep", lat, lng);
+          setSelectMode("destination");
+        } else {
+          setDestination({ coord: { lat, lng }, address });
+          setMarker("dst", lat, lng);
+        }
+      });
+      detachClick = () => naver.maps.Event.removeListener(h);
+    })();
+
+    return () => {
+      const { naver } = window as any;
+      detachClick && detachClick();
+      detachIdle && naver?.maps?.Event?.removeListener(detachIdle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="relative">
-      <div ref={mapRef} className="w-full h-[60vh] bg-gray-200 rounded-t-xl" />
+      {/* 상단 검색 (출발/도착) */}
+     <div className="absolute top-3 left-0 right-0 z-20">
+  <div className="mx-auto w-full max-w-[520px] px-3 space-y-2">
+    <div className="flex gap-2">
+      <SearchSelectBox
+        placeholder="출발지 검색 (예: 종각역, 경희대병원)"
+        value={departure.address}
+        mapCenter={mapCenter}
+        onSelect={(s) => {
+          const { naver } = window as any;
+          setDeparture({ coord: { lat: s.lat, lng: s.lng }, address: s.address });
+          setMarker("dep", s.lat, s.lng);
+          map.current?.setCenter(new naver.maps.LatLng(s.lat, s.lng));
+          setSelectMode("destination");
+        }}
+        className="flex-1"
+      />
+      <button
+        className={`px-3 rounded-xl text-xs border ${selectMode === "departure" ? "bg-blue-600 text-white border-blue-600" : "bg-white"}`}
+        onClick={() => setSelectMode("departure")}
+      >
+        출발지
+      </button>
+    </div>
 
-      {/* 오버레이 패널 */}
-      <div className="absolute bottom-0 left-0 right-0">
-        <div className="mx-auto w-full max-w-[520px]">
-          <div className="bg-white border-t rounded-t-xl shadow-lg">
-            {/* 선택 모드 토글 */}
-            <div className="p-3 flex gap-2">
-              <button
-                className={`px-3 py-2 rounded-xl text-sm border ${
-                  selectMode === "departure"
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700"
-                }`}
-                onClick={() => setSelectMode("departure")}
-              >
-                출발지 선택
-              </button>
-              <button
-                className={`px-3 py-2 rounded-xl text-sm border ${
-                  selectMode === "destination"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-700"
-                }`}
-                onClick={() => setSelectMode("destination")}
-              >
-                도착지 선택
-              </button>
-            </div>
+    <div className="flex gap-2">
+      <SearchSelectBox
+        placeholder="도착지 검색 (예: 서울대병원, 한국외대)"
+        value={destination.address}
+        mapCenter={mapCenter}
+        onSelect={(s) => {
+          const { naver } = window as any;
+          setDestination({ coord: { lat: s.lat, lng: s.lng }, address: s.address });
+          setMarker("dst", s.lat, s.lng);
+          map.current?.setCenter(new naver.maps.LatLng(s.lat, s.lng));
+          setSelectMode("destination");
+        }}
+        className="flex-1"
+      />
+      <button
+        className={`px-3 rounded-xl text-xs border ${selectMode === "destination" ? "bg-green-600 text-white border-green-600" : "bg-white"}`}
+        onClick={() => setSelectMode("destination")}
+      >
+        도착지
+      </button>
+    </div>
+  </div>
+</div>
 
-            {/* 주소 표시 */}
-            <div className="px-4 pb-4">
-              <div className="space-y-2 text-sm">
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-block w-14 shrink-0 text-gray-500">출발지</span>
-                  <span className="font-medium text-gray-800 break-all">
-                    {departure.address || "지도를 클릭하여 선택"}
-                  </span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-block w-14 shrink-0 text-gray-500">도착지</span>
-                  <span className="font-medium text-gray-800 break-all">
-                    {destination.address || "지도를 클릭하여 선택"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div> 
+      {/* 지도 */}
+      <div ref={mapEl} className="w-full h-[60vh] bg-gray-200 rounded-t-xl" />
     </div>
   );
 }
