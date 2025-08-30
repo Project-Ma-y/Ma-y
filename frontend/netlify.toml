@@ -1,4 +1,6 @@
-# JS
+# netlify.toml
+
+# ESModule JS/CSS를 올바른 MIME으로 강제
 [[headers]]
   for = "/assets/*.js"
   [headers.values]
@@ -9,7 +11,6 @@
   [headers.values]
     Content-Type = "application/javascript; charset=utf-8"
 
-# CSS
 [[headers]]
   for = "/assets/*.css"
   [headers.values]
@@ -19,3 +20,15 @@
   for = "/*.css"
   [headers.values]
     Content-Type = "text/css; charset=utf-8"
+
+# SPA 라우팅
+[[redirects]]
+  from = "/api/*"
+  to   = "https://ma-y-5usy.onrender.com/:splat" # ← 백엔드로 프록시
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
