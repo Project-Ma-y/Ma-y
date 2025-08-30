@@ -5,7 +5,7 @@ import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import clsx from "clsx";
 import { api } from "@/lib/api";
-import { loadNaverMap } from "@/utils/loadNaverMap"; // ✅ 지도 SDK 로더 추가
+import { loadNaverMap } from "@/utils/loadNaverMap";
 
 // ===== Types =====
 interface SeniorProfile {
@@ -38,7 +38,6 @@ interface BookingDetail {
   paidAt?: string;
   seniorProfile?: SeniorProfile;
 
-  // (선택) 좌표가 백엔드에서 올 수도 있음
   departureCoord?: { lat: number; lng: number } | null;
   destinationCoord?: { lat: number; lng: number } | null;
 }
@@ -68,7 +67,7 @@ const toClock = (iso: string) => {
 const formatDateTimeRange = (startISO: string, endISO: string) =>
   `${toDateStr(startISO)} ${toClock(startISO)} ~ ${toClock(endISO)}`;
 
-/** ===== 지도 섹션 컴포넌트 ===== */
+/** ===== 지도 섹션 ===== */
 function MapSection({
   departureAddress,
   destinationAddress,
@@ -80,29 +79,28 @@ function MapSection({
   departureCoord?: { lat: number; lng: number } | null;
   destinationCoord?: { lat: number; lng: number } | null;
 }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapObj = useRef<any>(null);
   const depMarkerRef = useRef<any>(null);
   const dstMarkerRef = useRef<any>(null);
   const lineRef = useRef<any>(null);
 
-  // 주소 → 좌표 변환
+  // 주소 → 좌표
   const geocode = (q: string): Promise<{ lat: number; lng: number } | null> =>
     new Promise((resolve) => {
       const { naver } = window as any;
       if (!q?.trim()) return resolve(null);
-      // query 우선, 실패 시 address로 한 번 더
-      const tryOnce = (opts: any) =>
+      const call = (opts: any) =>
         new Promise<any[]>((res) =>
           naver.maps.Service.geocode(opts, (status: any, resp: any) => {
             if (status !== naver.maps.Service.Status.OK) return res([]);
             res(resp?.v2?.addresses ?? []);
           })
         );
-
       (async () => {
-        let list = await tryOnce({ query: q });
-        if (!list.length) list = await tryOnce({ address: q });
+        let list = await call({ query: q });
+        if (!list.length) list = await call({ address: q });
         if (!list.length) return resolve(null);
         const v = list[0];
         resolve({ lat: Number(v.y), lng: Number(v.x) });
@@ -111,15 +109,32 @@ function MapSection({
 
   useEffect(() => {
     let cleanup: any;
+    let io: IntersectionObserver | null = null;
 
-    (async () => {
+    const initMap = async () => {
       await loadNaverMap();
       const { naver } = window as any;
 
-      // 초기 중심 (서울 시청 근처)
-      const center = new naver.maps.LatLng(37.5666805, 126.9784147);
+      if (!mapRef.current) return;
+
+      // 컨테이너가 실크기 갖출 때까지 대기
+      const ensureSize = () =>
+        new Promise<void>((r) => {
+          let tries = 0;
+          const tick = () => {
+            tries++;
+            const w = mapRef.current!.clientWidth;
+            const h = mapRef.current!.clientHeight;
+            if (w > 0 && h > 0) return r();
+            if (tries > 10) return r(); // 최대 1s
+            setTimeout(tick, 100);
+          };
+          tick();
+        });
+      await ensureSize();
+
       const map = new naver.maps.Map(mapRef.current!, {
-        center,
+        center: new naver.maps.LatLng(37.5666805, 126.9784147),
         zoom: 14,
         scaleControl: false,
         logoControl: false,
@@ -127,23 +142,21 @@ function MapSection({
       });
       mapObj.current = map;
 
-      const ensureCoords = async () => {
-        const dep =
-          departureCoord ??
-          (await geocode(departureAddress).catch(() => null));
-        const dst =
-          destinationCoord ??
-          (await geocode(destinationAddress).catch(() => null));
-        return { dep, dst };
-      };
+      // 최초 보정
+      setTimeout(() => naver.maps.Event.trigger(map, "resize"), 0);
 
-      const { dep, dst } = await ensureCoords();
-
-      // 마커/경계/선
       const iconBlue =
         '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>';
       const iconGreen =
         '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>';
+
+      // 좌표 확보 (백엔드 제공 → 없으면 지오코딩)
+      const dep =
+        departureCoord ??
+        (await geocode(departureAddress).catch(() => null));
+      const dst =
+        destinationCoord ??
+        (await geocode(destinationAddress).catch(() => null));
 
       if (dep) {
         depMarkerRef.current = new naver.maps.Marker({
@@ -160,14 +173,12 @@ function MapSection({
         });
       }
 
-      // 두 지점이 모두 있으면 경계 맞추기 + 라인
       if (dep && dst) {
         const bounds = new naver.maps.LatLngBounds(
           new naver.maps.LatLng(dep.lat, dep.lng),
           new naver.maps.LatLng(dst.lat, dst.lng)
         );
         map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-
         lineRef.current = new naver.maps.Polyline({
           map,
           path: [
@@ -184,20 +195,37 @@ function MapSection({
         map.setCenter(new naver.maps.LatLng(dst.lat, dst.lng));
       }
 
+      // 가시성 변경 시 resize
+      if (wrapRef.current) {
+        io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting && mapObj.current) {
+              naver.maps.Event.trigger(mapObj.current, "resize");
+            }
+          });
+        });
+        io.observe(wrapRef.current);
+      }
+
       cleanup = () => {
         depMarkerRef.current && depMarkerRef.current.setMap(null);
         dstMarkerRef.current && dstMarkerRef.current.setMap(null);
         lineRef.current && lineRef.current.setMap(null);
         mapObj.current = null;
       };
-    })();
+    };
 
-    return () => cleanup && cleanup();
+    initMap();
+
+    return () => {
+      cleanup && cleanup();
+      io && io.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [departureAddress, destinationAddress, departureCoord, destinationCoord]);
 
   return (
-    <div className="relative h-[220px] w-full overflow-hidden rounded-t-2xl bg-gray-200">
+    <div ref={wrapRef} className="relative h-[220px] w-full overflow-hidden rounded-t-2xl">
       <div ref={mapRef} className="absolute inset-0" />
     </div>
   );
@@ -220,7 +248,6 @@ export default function ReservationDetail() {
       try {
         const response = await api.get(`/booking/${id}`);
 
-        // snake_case ↔ camelCase 매핑
         const raw = response.data;
         const normalized: BookingDetail = {
           userId: raw.userId ?? raw.user_id,
