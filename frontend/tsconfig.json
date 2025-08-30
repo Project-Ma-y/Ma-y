@@ -4,9 +4,9 @@
     "module": "ESNext",
     "jsx": "react-jsx",
     "moduleResolution": "Bundler",
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["*"]
     },
 
     // 품질 옵션(필요 시 다시 엄격하게 올려)
