@@ -13,7 +13,8 @@ const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";
 
 interface Reservation {
-  _id: string;
+  _id?: string; // ✅ _id 없을 수도 있으니 optional
+  id?: string;  // ✅ 혹시 id로 오는 경우도 대비
   userId: string;
   familyId?: string;
   seniorId?: string;
@@ -65,6 +66,18 @@ const formatDateToText = (isoString: string): string => {
   return `${prefix} ${ampm} ${hh}:${mm}`;
 };
 
+// ✅ MyReservations와 동일하게: 안전한 ID 추출기
+const pickReservationId = (r: Reservation): string | undefined => r?._id ?? r?.id ?? undefined;
+
+// ✅ 상세 이동 핸들러(없으면 중단)
+const goReservationDetail = (navigate: ReturnType<typeof useNavigate>, rid?: string) => {
+  if (!rid) {
+    console.error("[MyPage] 예약 상세 이동 실패: 유효한 예약 ID가 없습니다.");
+    return;
+  }
+  navigate(`/reservation/${rid}`);
+};
+
 export default function MyPage() {
   const navigate = useNavigate();
   const {
@@ -79,7 +92,7 @@ export default function MyPage() {
   const openParentsManage = () => {
     if (!profile) return;
     const prefill = (profile.registeredFamily ?? []).map((p: any) => ({
-      mid: p.memberId,                 // 서버 식별자
+      mid: p.memberId,
       name: p.name ?? "",
       phone: p.phone ?? "",
       gender: p.gender ?? "",
@@ -116,7 +129,7 @@ export default function MyPage() {
             return;
           }
           const data: Reservation[] = await resp.json();
-          const sorted = data.sort(
+          const sorted = (Array.isArray(data) ? data : []).sort(
             (a, b) =>
               new Date(b.startBookingTime).getTime() - new Date(a.startBookingTime).getTime()
           );
@@ -190,13 +203,11 @@ export default function MyPage() {
       );
     }
 
-    // 사용자 이름은 항상 사용자 본인의 이름
     const profileName = profile.name;
-    // ✅ 역할 판별: 보호자/시니어
     const isFamilyUser = profile.customerType === "family";
     const isSeniorUser = profile.customerType === "senior";
 
-     const seniorsList: any[] = Array.isArray(profile.registeredFamily)
+    const seniorsList: any[] = Array.isArray(profile.registeredFamily)
       ? profile.registeredFamily
       : [];
     const hasSeniors = seniorsList.length > 0;
@@ -207,9 +218,9 @@ export default function MyPage() {
     return (
       <>
         <Card className="flex items-center gap-4 p-4">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-200 overflow-hidden">
             {profile.profileImage ? (
-              <img src={profile.profileImage} alt="Profile" className="h-16 w-16 rounded-full" />
+              <img src={profile.profileImage} alt="Profile" className="h-16 w-16 rounded-full object-cover" />
             ) : (
               <svg className="h-10 w-10 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
@@ -219,7 +230,6 @@ export default function MyPage() {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-bold">{profileName}</h3>
-              {/* ✅ 뱃지 문구 수정 */}
               <span className="rounded-md bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">
                 {isFamilyUser ? "보호자" : "시니어"}
               </span>
@@ -231,7 +241,6 @@ export default function MyPage() {
               </Link>
             </div>
             <div className="text-sm text-gray-500 mt-1">{profile.phone}</div>
-            {/* 하단 한줄 안내는 유지/원하면 문구도 시니어로 바꿔도 됨 */}
             {isFamilyUser && (
               <div className="text-xs text-gray-500 mt-1">
                 {hasSeniors ? `시니어 - ${seniorsList.length}명` : "등록한 가족이 없습니다."}
@@ -240,7 +249,6 @@ export default function MyPage() {
           </div>
         </Card>
 
-        {/* ✅ 시니어 섹션: 보호자에게만 보이게, 0명이어도 섹션 표시 */}
         {isFamilyUser && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between">
@@ -286,7 +294,6 @@ export default function MyPage() {
                 </Link>
               ))
             ) : (
-              // ✅ 0명일 때도 섹션 내 안내 카드 표시 (문구 유지)
               <Card className="p-4">
                 <div className="text-sm text-gray-600">등록한 가족이 없습니다.</div>
               </Card>
@@ -312,15 +319,26 @@ export default function MyPage() {
               <p className="text-gray-500">예약 정보를 불러오는 중...</p>
             </div>
           ) : recentReservation ? (
-            <ReservationCard
-              id={recentReservation._id}
-              status={mapStatusToCardStatus(recentReservation.status)}
-              dateText={formatDateToText(recentReservation.startBookingTime)}
-              title={`${recentReservation.destinationAddress} 방문`}
-              companionText={"김이박 동행인"}
-              onConfirm={() => navigate(`/reservation/${recentReservation._id}`)}
-              onCancel={() => navigate(`/reservation/${recentReservation._id}`)}
-            />
+            (() => {
+              const rid = pickReservationId(recentReservation); // ✅ 안전 추출
+              return rid ? (
+                <ReservationCard
+                  id={rid}
+                  status={mapStatusToCardStatus(recentReservation.status)}
+                  dateText={formatDateToText(recentReservation.startBookingTime)}
+                  title={`${recentReservation.destinationAddress} 방문`}
+                  companionText={"김이박 동행인"}
+                  onConfirm={() => goReservationDetail(navigate, rid)}
+                  onCancel={() => goReservationDetail(navigate, rid)}
+                />
+              ) : (
+                <Card className="p-4 border border-red-200">
+                  <div className="text-sm text-red-600">
+                    이 예약 아이템에는 ID가 없어 상세 이동이 불가합니다. (최근 예약)
+                  </div>
+                </Card>
+              );
+            })()
           ) : (
             <Card className="p-4">
               <div className="text-sm text-gray-600">

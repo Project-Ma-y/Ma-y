@@ -208,10 +208,10 @@ export default function ReservationDetail() {
   return (
     <MainLayout
       headerProps={{
-        title: "예약 내역",
-        showBack: true,
+       type: "header-a",
+       title: "예약 내역",
       }}
-      showNav={true}
+      showNav={false}
     >
       <div className="flex flex-col space-y-4">
         {/* 진행 상태 */}

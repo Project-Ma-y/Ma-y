@@ -234,7 +234,7 @@ export default function ParentsManage() {
   };
 
   return (
-    <MainLayout headerProps={{ title: "보호 대상자 관리", showBack: true }} showNav={true}>
+    <MainLayout headerProps={{ title: "보호 대상자 관리", showBack: true }} showNav={false}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700">나의 가족 관리</h3>

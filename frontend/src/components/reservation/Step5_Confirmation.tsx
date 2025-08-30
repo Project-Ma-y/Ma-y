@@ -223,14 +223,14 @@ try {
         variant="notice"
         title="예약을 진행할까요?"
         subtext="입력한 정보로 예약을 생성합니다."
-        confirmText="예, 예약하기"
+        confirmText="예약하기"
         showCancel
-        cancelText="수정할게요"
+        cancelText="수정하기"
         onConfirm={handleReserve}
         acknowledgeLabel="안내사항을 확인했습니다."
       >
         <p className="text-sm leading-6">
-          결제 및 예약 확정 절차는 안내에 따라 진행됩니다.
+          결제 및 예약 확정 절차는 <br/> 안내에 따라 진행됩니다.
         </p>
       </Modal>
 

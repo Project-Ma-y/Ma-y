@@ -63,6 +63,7 @@ export default function ReservationProcess() {
        type: "header-a",
        title: "동행 예약하기",
       }}
+      showNav={false}
     >
       <CurrentStepComponent
         formData={formData}

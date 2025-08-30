@@ -25,7 +25,7 @@ export default function Login() {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
       if (user) {
         setAuth(user); // Zustand에 사용자 상태 저장
-        nav("/home");  // 홈으로 이동
+        nav("/");  // 홈으로 이동
       }
     });
 

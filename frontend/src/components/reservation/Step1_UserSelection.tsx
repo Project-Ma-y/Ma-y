@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/button/Button";
 import { useUserStore } from "@/store/userStore";
+import { useNavigate } from "react-router-dom";
 
 // 전화번호 정규화 유틸
 const getPhone = (v: any) =>
@@ -20,6 +21,8 @@ interface Step1Props {
 
 const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev }) => {
   const { profile } = useUserStore();
+  const navigate = useNavigate();
+
   const isSeniorUser = profile?.customerType === "senior";
 
   // 등록된 가족(시니어) 목록
@@ -52,8 +55,7 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
         birthdate: profile.birthdate || "",
       },
       isSelf: true,
-      seniorId: "", // ← 본인 예약: 아무거나/빈값 → 서버가 uid로 대체
-      // gotoStep: 2,
+      seniorId: "", // ← 본인 예약: 서버에서 uid로 대체
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSeniorUser, profile]);
@@ -75,31 +77,50 @@ const Step1_UserSelection: React.FC<Step1Props> = ({ formData, onNext, onPrev })
       },
       isSelf: false,
       seniorId: String(getMemberId(picked) ?? ""), // ← 가족의 memberId 사용
-      // gotoStep: 2,
     });
   };
 
-  // ✅ 가족(시니어) 0명: 자동 진행하지 말고 UI 노출 + 다음 버튼으로 단일 진행
-  //    - seniorId는 빈 문자열("")로 전달 → 백엔드에서 신청자 본인 uid로 처리
+  // ✅ 가족(보호자)이고 등록된 동행인(시니어)이 0명일 때: 두 가지 선택지 제공
+  //    1) 제가 이용할게요 → 본인으로 진행 (seniorId="")
+  //    2) 동행인을 추가할래요 → /parents/manage 이동
   if (!isSeniorUser && parents.length === 0) {
     return (
-      <div className="p-4 space-y-4">
-        <h2 className="text-xl font-bold">동행이 필요한 분 선택</h2>
-        <p className="text-sm text-gray-600">등록된 시니어가 없습니다.</p>
-        <div className="flex justify-between p-4 bg-gray-50 rounded-lg">
-          <Button onClick={onPrev} buttonName="이전" type="secondary" />
-          <Button
-            onClick={() =>
-              safeNext({
-                selectedUserIndex: null,
-                selectedUser: null,
-                isSelf: true,
-                seniorId: "", // ← 빈값 전달(본인 처리)
-              })
-            }
-            buttonName="다음"
-            type="primary"
-          />
+      <div className="p-2 space-y-6">
+        <div>
+          <h2 className="text-xl font-bold">동행이 필요한 분 선택</h2>
+          <p className="mt-2 text-sm text-gray-600">등록된 가족이 없습니다.</p>
+        </div>
+
+        <div className="">
+          <p className="text-sm text-gray-700">
+            본인으로 예약하기 또는 가족 추가 후 예약을 진행해주세요.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Button
+              type="secondary"
+              buttonName="제가 이용할게요"
+              onClick={() =>
+                safeNext({
+                  selectedUserIndex: null,
+                  selectedUser: null,
+                  isSelf: true,
+                  seniorId: "", // ← 본인 처리
+                })
+              }
+              className="text-sm"
+            />
+            <Button
+              type="primary"
+              buttonName="가족을 추가할래요"
+              onClick={() => navigate("/parents/manage")}
+              className="text-sm"
+            />
+          </div>
+
+          <div className="mt-4 flex justify-between">
+            <Button type="primary" buttonName="이전" onClick={onPrev} className="w-full"/>
+          </div>
         </div>
       </div>
     );
