@@ -31,7 +31,10 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://project-ma-y.github.io",
-  "https://mayservice.netlify.app"
+  "https://mayservice.netlify.app",
+  "https://mayservice.co.kr",
+  "https://www.mayservice.co.kr",
+  "https://app.mayservice.co.kr"
 ];
 
 const app: Express = express();
