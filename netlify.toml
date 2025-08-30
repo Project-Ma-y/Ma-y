@@ -1,12 +1,6 @@
-[build]
-  base    = "frontend"
-  command = "npm ci && npm run build"
-  publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "20"
-
+# netlify.toml (프로젝트 루트)
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/api/*"
+  to = "https://api.mayservice.co.kr/:splat"
   status = 200
+  force = true

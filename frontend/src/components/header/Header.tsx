@@ -8,7 +8,6 @@ import logoUrl from "/assets/logo/logo.png";
 interface HeaderProps {
   type?: "default" | "header-a" | "header-b";
   title?: string;
-  /** 페이지에서만 폭 제한을 해제하고 전체 폭으로 사용하려면 true */
   fullWidth?: boolean;
 }
 
@@ -20,7 +19,6 @@ const Header: React.FC<HeaderProps> = ({
   const [pageTitle, setPageTitle] = useState(title);
   const navigate = useNavigate();
 
-  // ✅ 전역 글자 확대 상태
   const isLargeFont = useUIStore((s) => s.largeTextEnabled);
   const toggleLargeText = useUIStore((s) => s.toggleLargeText);
 
@@ -29,7 +27,6 @@ const Header: React.FC<HeaderProps> = ({
       setPageTitle(title);
       return;
     }
-
     setPageTitle(document.title || "Title");
 
     const el = document.querySelector("title");
@@ -40,13 +37,11 @@ const Header: React.FC<HeaderProps> = ({
         setPageTitle(document.title || "Title");
       }
     });
-
     observer.observe(el, {
       subtree: true,
       characterData: true,
       childList: true,
     });
-
     return () => observer.disconnect();
   }, [title]);
 
@@ -54,18 +49,16 @@ const Header: React.FC<HeaderProps> = ({
     toggleLargeText(checked);
   };
 
-  // ✅ fullWidth 여부에 따라 내부 컨테이너 폭 제약 제어
+  // ✅ 반응형: 모바일(<=375px)에서는 min-w 제거
   const innerWidthClass = fullWidth
     ? "w-full"
-    : "w-full max-w-[520px] min-w-[390px] mx-auto";
+    : "w-full max-w-[520px] mx-auto px-2 sm:px-4"; 
+    // min-w 제거, 대신 padding으로 여백 확보
 
   return (
-    // 헤더 바탕은 항상 전체폭
-    <header className="w-full bg-white px-4 py-3 shadow-md">
-      {/* 내부 컨테이너만 폭 제한/해제 */}
+    <header className="w-full bg-white px-2 sm:px-4 py-3 shadow-md overflow-x-hidden">
       <div className={innerWidthClass}>
         <nav className="flex items-center justify-between">
-          {/* 좌측 버튼 (뒤로가기) */}
           {type === "header-a" && (
             <button onClick={() => navigate(-1)} aria-label="뒤로가기">
               <svg
@@ -82,26 +75,24 @@ const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* 좌측 로고/타이틀 */}
           {type === "default" && (
             <div className="flex items-center">
               <button
                 onClick={() => navigate("/")}
-                className="rounded-md px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]"
+                className="rounded-md px-1 sm:px-2 py-1 text-lg font-extrabold text-[var(--color-primary)]"
               >
-                <img src={logoUrl} alt="logo" className="w-12" />
+                <img src={logoUrl} alt="logo" className="w-10 sm:w-12" />
               </button>
             </div>
           )}
 
-          {/* 페이지 타이틀 */}
           {(type === "header-a" || type === "header-b") && (
-            <span className="text-lg font-semibold">{pageTitle}</span>
+            <span className="text-base sm:text-lg font-semibold truncate max-w-[60%]">
+              {pageTitle}
+            </span>
           )}
 
-          {/* 우측 버튼 그룹 */}
-          <div className="flex items-center gap-4">
-            {/* type이 default일 때만 토글 버튼 */}
+          <div className="flex items-center gap-2 sm:gap-4">
             {type === "default" && (
               <Switch
                 label="글씨 확대"
@@ -109,12 +100,10 @@ const Header: React.FC<HeaderProps> = ({
                 onChange={handleToggleFont}
               />
             )}
-
-            {/* type이 default일 때만 알림 아이콘 */}
             {type === "default" && (
               <button aria-label="알림" className="relative">
                 <svg
-                  className="h-5 w-5 text-gray-800"
+                  className="h-5 w-5 sm:h-6 sm:w-6 text-gray-800"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -122,8 +111,6 @@ const Header: React.FC<HeaderProps> = ({
                 </svg>
               </button>
             )}
-
-            {/* type이 header-b일 때 설정 아이콘 */}
             {type === "header-b" && (
               <button aria-label="설정">
                 <svg

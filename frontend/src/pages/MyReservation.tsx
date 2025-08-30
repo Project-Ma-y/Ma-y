@@ -5,15 +5,13 @@ import MainLayout from "@/layouts/MainLayout";
 import { useNavigate } from "react-router-dom";
 import ReservationCard from "@/components/ReservationCard";
 import { useUserStore } from "@/store/userStore";
-import { auth as firebaseAuth } from "@/services/firebase";
-
-const BASE_URL = "https://api.mayservice.co.kr/api/booking";
+import api from "@/lib/api"; // ✅ 단일 인스턴스 사용
 
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";
 
 interface Reservation {
-  _id?: string;                 // ← 안전하게 optional 처리(디버깅 목적)
-  id?: string;                  // ← 혹시 백엔드가 id로 줄 수도 있으니 체크
+  _id?: string;
+  id?: string;
   userId: string;
   familyId?: string;
   seniorId?: string;
@@ -32,19 +30,13 @@ interface Reservation {
   paidAt?: string;
 }
 
-// ───────────────────────────────────────────────────────────────────────────────
-// 로그 유틸 (종류별)
-// ───────────────────────────────────────────────────────────────────────────────
+// 로그 유틸
 const tag = "[MyReservations]";
-
 const logInfo = (...args: any[]) => console.info(tag, ...args);
 const logDebug = (...args: any[]) => console.debug(tag, ...args);
 const logWarn = (...args: any[]) => console.warn(tag, ...args);
 const logError = (...args: any[]) => console.error(tag, ...args);
 
-// ───────────────────────────────────────────────────────────────────────────────
-// 상태 매핑
-// ───────────────────────────────────────────────────────────────────────────────
 const mapStatusToCardStatus = (apiStatus: Reservation["status"]): ReservationCardStatus => {
   switch (apiStatus) {
     case "pending":
@@ -57,9 +49,6 @@ const mapStatusToCardStatus = (apiStatus: Reservation["status"]): ReservationCar
   }
 };
 
-// ───────────────────────────────────────────────────────────────────────────────
-// 날짜 포맷
-// ───────────────────────────────────────────────────────────────────────────────
 const formatDateToText = (isoString: string): string => {
   try {
     const date = new Date(isoString);
@@ -67,7 +56,6 @@ const formatDateToText = (isoString: string): string => {
       logWarn("유효하지 않은 날짜 문자열:", isoString);
       return "유효하지 않은 날짜";
     }
-
     const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
@@ -89,16 +77,10 @@ const formatDateToText = (isoString: string): string => {
   }
 };
 
-// ───────────────────────────────────────────────────────────────────────────────
-// 안전한 ID 추출기(_id 우선, 없으면 id 시도)
-// ───────────────────────────────────────────────────────────────────────────────
 const pickReservationId = (r: Reservation): string | undefined => {
   return r?._id ?? r?.id ?? undefined;
 };
 
-// ───────────────────────────────────────────────────────────────────────────────
-// 컴포넌트
-// ───────────────────────────────────────────────────────────────────────────────
 export default function MyReservations() {
   const navigate = useNavigate();
   const { isLoggedIn } = useUserStore();
@@ -106,47 +88,26 @@ export default function MyReservations() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 최초 로드/로그인 상태 변화 시 목록 요청
   useEffect(() => {
     const fetchReservations = async () => {
       setIsLoading(true);
 
-      const user = firebaseAuth.currentUser;
-      if (!isLoggedIn || !user) {
-        logWarn("로그인 상태가 아니거나 Firebase user가 없음 → 목록 요청 중단");
+      if (!isLoggedIn) {
+        logWarn("로그인 상태가 아님 → 목록 요청 중단");
         setIsLoading(false);
         setReservations([]);
         return;
       }
 
       try {
-        const token = await user.getIdToken();
-        logDebug("Firebase ID 토큰 준비 완료(앞 10자):", token.slice(0, 10) + "...");
-
-        const url = `${BASE_URL}/my`;
+        // ✅ 토큰은 인터셉터에서 자동 부착
+        const url = `/booking/my`;
         logInfo("예약 목록 요청 시작:", url);
 
-        const resp = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          // credentials: "include",
-        });
-
-        logDebug("예약 목록 응답 상태:", resp.status);
-
-        if (!resp.ok) {
-          logError("예약 목록 요청 실패 - status:", resp.status);
-          setReservations([]);
-          return;
-        }
-
-        const data: Reservation[] = await resp.json();
+        const resp = await api.get<Reservation[]>(url);
+        const data = resp.data ?? [];
         logInfo("예약 원본 데이터 수:", data?.length ?? 0);
 
-        // 각 아이템 로그(종류별 상세)
         data?.forEach((item, idx) => {
           const rid = pickReservationId(item);
           console.groupCollapsed(`${tag} 예약 아이템 [${idx}]`);
@@ -158,7 +119,6 @@ export default function MyReservations() {
           console.groupEnd();
         });
 
-        // 정렬
         const sorted = Array.isArray(data)
           ? [...data].sort(
               (a, b) =>
@@ -167,7 +127,6 @@ export default function MyReservations() {
           : [];
 
         logInfo("정렬 후 데이터 수:", sorted?.length ?? 0);
-
         setReservations(sorted);
       } catch (err) {
         logError("예약 목록 요청 중 예외 발생:", err);
@@ -184,7 +143,6 @@ export default function MyReservations() {
     }
   }, [isLoggedIn]);
 
-  // id 유효성 통계 로그
   const idStats = useMemo(() => {
     const totals = reservations.length;
     const withId = reservations.filter((r) => !!pickReservationId(r)).length;
@@ -228,7 +186,6 @@ export default function MyReservations() {
           {reservations.map((reservation, idx) => {
             const rid = pickReservationId(reservation);
 
-            // 렌더 직전에 한 번 더 강한 로그
             if (!rid) {
               logWarn(`렌더 스킵: [${idx}] 예약에 유효한 ID가 없습니다.`, reservation);
               return (
@@ -244,7 +201,7 @@ export default function MyReservations() {
             return (
               <ReservationCard
                 key={rid}
-                id={rid} // ← 반드시 전달
+                id={rid}
                 status={mapStatusToCardStatus(reservation.status)}
                 dateText={formatDateToText(reservation.startBookingTime)}
                 title={`${reservation.destinationAddress} 방문`}

@@ -1,9 +1,9 @@
 // src/layouts/MainLayout.tsx
-import React, { useEffect } from 'react';
-import Header from '@/components/header/Header';
-import Navigation from '@/components/Navigation';
-import { useUIStore } from '@/store/uiStore';
-import clsx from 'clsx';
+import React, { useEffect } from "react";
+import Header from "@/components/header/Header";
+import Navigation from "@/components/Navigation";
+import { useUIStore } from "@/store/uiStore";
+import clsx from "clsx";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -19,50 +19,57 @@ interface MainLayoutProps {
 const MainLayout = ({
   children,
   headerProps,
-  className = '',
+  className = "",
   showNav = true,
   fullWidth = false,
-  contentClassName = '',
+  contentClassName = "",
 }: MainLayoutProps) => {
   const showHeader = headerProps?.showHeader ?? true;
 
-  // ✅ 전역 글자 확대 상태
+  // 전역 글자 확대
   const large = useUIStore((s) => s.largeTextEnabled);
-
-  // ✅ rem 기준을 키우기: html(font-size)을 직접 변경
   useEffect(() => {
     const html = document.documentElement;
-    html.style.fontSize = large ? '18px' : '16px';
-    return () => {};
+    html.style.fontSize = large ? "18px" : "16px";
   }, [large]);
 
   return (
-    <div className={clsx('bg-gray-100 w-full min-h-screen', className)}>
+    // ✅ 루트에서 가로 스크롤 차단
+    <div className={clsx("bg-gray-100 w-full min-h-screen overflow-x-hidden", className)}>
       <div
         className={clsx(
-          'mx-auto flex flex-col relative w-full bg-white min-h-dvh',
-          fullWidth ? 'max-w-none min-w-0' : 'max-w-[520px] min-w-[390px]',
+          // ✅ 내부도 overflow-x-hidden 유지
+          "mx-auto flex flex-col relative w-full bg-white min-h-dvh overflow-x-hidden",
+          // ✅ min-w 제거, 작은 화면에서 절대 넘치지 않도록
+          fullWidth ? "max-w-none" : "max-w-[520px]"
         )}
       >
         {showHeader && (
           <Header
             {...headerProps}
-            fullWidth={fullWidth} // ✅ 헤더에도 폭 정보 전달
+            fullWidth={fullWidth} // 헤더도 min-w 없이 반응형
           />
         )}
 
         <section
           className={clsx(
-            // 기본 섹션 여백
-            'flex-1 min-h-0 flex flex-col gap-[clamp(24px,5vw,32px)] px-[clamp(12px,5vw,20px)] py-[clamp(24px,5vw,32px)] bg-white',
-            showNav && 'pb-[80px]',
-            contentClassName, // ✅ 페이지별로 덮어쓰기 가능
+            // ✅ 내용 영역도 가로 스크롤 제거 + 안전한 패딩
+            "flex-1 min-h-0 flex flex-col bg-white overflow-x-hidden",
+            // spacing: 작은 화면에선 좀 더 타이트하게
+            "gap-[clamp(16px,4vw,24px)] px-3 sm:px-5 py-[clamp(16px,4vw,24px)]",
+            showNav && "pb-[88px]", // 네비 하단 여백
+            contentClassName
           )}
         >
           {children}
         </section>
 
-        {showNav && <Navigation activePath={window.location.pathname} />}
+        {showNav && (
+          // ✅ 네비가 뷰포트를 넘지 않도록 고정 폭 + hidden
+          <div className="w-full max-w-full overflow-x-hidden">
+            <Navigation activePath={window.location.pathname} />
+          </div>
+        )}
       </div>
     </div>
   );

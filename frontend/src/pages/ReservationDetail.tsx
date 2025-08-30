@@ -4,11 +4,9 @@ import { useParams, Link } from "react-router-dom";
 import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import clsx from "clsx";
-import axios from "axios";
-import { auth as firebaseAuth } from "@/services/firebase";
-
-// 백엔드 베이스 URL (배포 주소/프록시 환경에 맞게 조정)
-const BASE_URL = "https://api.mayservice.co.kr/api/booking";
+import api from "@/lib/api"; // ✅ axios 인스턴스
+// import axios from "axios";  // ❌ 제거
+// import { auth as firebaseAuth } from "@/services/firebase"; // ❌ 컴포넌트에서 직접 토큰 안뽑음
 
 // ===== Types =====
 interface SeniorProfile {
@@ -25,7 +23,7 @@ interface SeniorProfile {
 interface BookingDetail {
   userId: string;
   familyId?: string;
-  seniorId?: string; // ✅ /api/booking/:id 응답에 포함 (snake_case면 매핑 필요)
+  seniorId?: string;
   startBookingTime: string;
   endBookingTime: string;
   departureAddress: string;
@@ -39,8 +37,6 @@ interface BookingDetail {
   isPaid: boolean;
   paymentMethod?: "card" | "cash" | "transfer";
   paidAt?: string;
-
-  // 서버가 시니어 프로필 자체를 함께 내려줄 수 있다면 사용
   seniorProfile?: SeniorProfile;
 }
 
@@ -84,23 +80,10 @@ export default function ReservationDetail() {
         return;
       }
       try {
-        const user = firebaseAuth.currentUser;
-        if (!user) {
-          setError("로그인이 필요합니다.");
-          setLoading(false);
-          return;
-        }
-        const token = await user.getIdToken();
+        // ✅ 토큰은 인터셉터에서 자동 부착
+        const response = await api.get(`/booking/${id}`);
 
-        const response = await axios.get(`${BASE_URL}/${id}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: false,
-        });
-
-        // 백엔드가 snake_case로 내려줄 경우 매핑 (선택)
+        // snake_case ↔ camelCase 매핑
         const raw = response.data;
         const normalized: BookingDetail = {
           userId: raw.userId ?? raw.user_id,
@@ -119,20 +102,16 @@ export default function ReservationDetail() {
           isPaid: raw.isPaid ?? raw.is_paid ?? false,
           paymentMethod: raw.paymentMethod ?? raw.payment_method,
           paidAt: raw.paidAt ?? raw.paid_at,
-          seniorProfile: raw.seniorProfile ?? raw.senior_profile, // 내려오면 사용
+          seniorProfile: raw.seniorProfile ?? raw.senior_profile,
         };
 
         setReservationDetails(normalized);
       } catch (err: any) {
-        if (axios.isAxiosError(err)) {
-          const msg =
-            err.response?.status === 404
-              ? "예약을 찾을 수 없습니다."
-              : err.response?.data?.message || "예약 정보를 불러오는데 실패했습니다.";
-          setError(msg);
-        } else {
-          setError("An unexpected error occurred.");
-        }
+        const msg =
+          err?.response?.status === 404
+            ? "예약을 찾을 수 없습니다."
+            : err?.response?.data?.message || "예약 정보를 불러오는데 실패했습니다.";
+        setError(msg);
       } finally {
         setLoading(false);
       }
@@ -208,8 +187,8 @@ export default function ReservationDetail() {
   return (
     <MainLayout
       headerProps={{
-       type: "header-a",
-       title: "예약 내역",
+        type: "header-a",
+        title: "예약 내역",
       }}
       showNav={false}
     >
@@ -258,7 +237,7 @@ export default function ReservationDetail() {
           </Link>
         </Card>
 
-       {/* ✅ 동행할 시니어 정보 */}
+        {/* 동행할 시니어 정보 */}
         {reservationDetails.seniorProfile && (
           <Card>
             <div className="mb-4 text-base font-semibold text-gray-700">동행할 시니어</div>
@@ -294,7 +273,6 @@ export default function ReservationDetail() {
           </Card>
         )}
 
-
         {/* 동행 정보 */}
         <Card className="space-y-4">
           <h2 className="text-lg font-bold">동행 정보</h2>
@@ -313,7 +291,7 @@ export default function ReservationDetail() {
               </span>
             </div>
             <Divider />
-            {/* ✅ 동행 날짜 + 시간 */}
+            {/* 동행 날짜 + 시간 */}
             <div className="flex justify-between text-base">
               <span className="text-gray-500">동행 일시</span>
               <span className="font-semibold text-gray-800 text-right">
@@ -337,7 +315,7 @@ export default function ReservationDetail() {
           </div>
         </Card>
 
-        {/* 결제/상태 요약 (선택) */}
+        {/* 결제/상태 요약 */}
         <Card className="space-y-3">
           <h2 className="text-lg font-bold">결제 및 상태</h2>
           <div className="flex justify-between text-base">

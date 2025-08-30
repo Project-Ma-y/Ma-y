@@ -1,23 +1,29 @@
-// src/services/api.ts
+// src/lib/api.ts
 import axios, { AxiosError } from "axios";
 import { getAuth } from "firebase/auth";
 
 /**
  * baseURL 전략
  * - DEV: Vite devServer proxy로 '/api'
- * - PROD: 반드시 VITE_API_URL로 절대 URL 제공 (예: https://your-backend.com/api)
+ * - PROD: VITE_API_URL(미지정 시 '/api'로 폴백)
+ *
+ *   Netlify 프록시를 쓰면 VITE_API_URL을 '/api'로 두고
+ *   netlify.toml에서 백엔드로 라우팅하면 됨.
  */
 const BASE_URL =
-  (import.meta.env.PROD
-    ? import.meta.env.VITE_API_URL // 배포 환경: 절대 URL 필수
-    : "/api") || "/api";
+  (import.meta.env.PROD ? import.meta.env.VITE_API_URL : "/api") || "/api";
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  headers: { "Content-Type": "application/json", Accept: "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+  },
   withCredentials: false,
 });
 
+// Firebase ID 토큰 자동 부착
 api.interceptors.request.use(async (config) => {
   const u = getAuth().currentUser;
   if (u) {
@@ -49,3 +55,5 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+export default api;
