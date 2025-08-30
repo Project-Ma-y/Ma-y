@@ -5,14 +5,6 @@ import { initSession } from "../services/sessionService";
 const isProduction = process.env.NODE_ENV === "production";
 const skipPaths = ["/api/sessions/main"];
 
-// 공통 쿠키 옵션 (반드시 동일하게)
-export const sessionCookieOpts = {
-  httpOnly: true,
-  secure: true,                 // SameSite=None이면 secure 필수. 프로덕션 강제 권장
-  sameSite: "none" as const,    // app.<domain> ↔ api.<domain> 크로스 서브도메인 대응
-  domain: ".mayservice.co.kr", // API 호스트에만 붙이고 싶으면 생략 가능. 서브도메인 전체 공유는 domain: ".mayservice.co.kr"
-};
-
 export const loadSession = async (req: Request, res: Response, next: NextFunction) => {
   let sessionId = req.cookies.sessionId;
 
@@ -27,7 +19,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     console.log("loadSession에서 세션id 못찾음"); //test
     sessionId = await initSession(req.user?.uid || "");
     req.cookies.sessionId = sessionId;
-    res.cookie("sessionId", sessionId, sessionCookieOpts);
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: "none" });
   }
 
   //세션 못 찾을 시 생성
@@ -39,7 +31,7 @@ export const loadSession = async (req: Request, res: Response, next: NextFunctio
     req.cookies.sessionId = sessionId;
     sessionRef = await db.collection("sessions").doc(sessionId);
     doc = await sessionRef.get();
-    res.cookie("sessionId", sessionId, sessionCookieOpts);
+    res.cookie("sessionId", sessionId, { httpOnly: true, secure: isProduction, sameSite: "none" });
   }
 
   req.sessionData= doc.data();
