@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>API & Firebase Login 테스트 (mayservice)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 920px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 1.25rem; }
+    fieldset { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 16px 0; }
+    legend { padding: 0 6px; color: #374151; }
+    label { display: block; margin: 8px 0 2px; color: #374151; font-size: 13px; }
+    input, textarea, select { width: 100%; padding: 10px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    .row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    button { padding: 10px 14px; border: 0; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .primary { background: #0ea5e9; color: #fff; }
+    .secondary { background: #e5e7eb; }
+    .danger { background: #ef4444; color: #fff; }
+    .inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pill { font-size: 12px; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 999px; }
+    .muted { color: #6b7280; font-size: 12px; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow: auto; max-height: 360px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <h1>Firebase 로그인 + API 호출 테스트</h1>
+  <p class="muted">
+    - 아이디 입력 시 <strong>@may.com</strong>이 자동으로 붙습니다(이미 @가 있으면 그대로 사용).<br>
+    - 모든 API 호출은 <code>credentials: "include"</code> 로 **쿠키를 항상 포함**하고, <code>localStorage.idToken</code>을 **매번 Authorization 헤더에** 붙입니다.
+  </p>
+
+  <fieldset>
+    <legend>1) Firebase 로그인</legend>
+    <div class="row">
+      <div>
+        <label>아이디</label>
+        <input id="idInput" type="text" placeholder="ex) user123 또는 user123@may.com" autocomplete="username email" />
+        <div class="muted">정규화된 이메일: <code id="normalizedEmail">-</code></div>
+      </div>
+      <div>
+        <label>비밀번호</label>
+        <input id="pwInput" type="password" placeholder="비밀번호" autocomplete="current-password" />
+      </div>
+    </div>
+    <div class="inline" style="margin-top:10px">
+      <button id="btnLogin" class="primary">로그인</button>
+      <button id="btnLogout" class="secondary">로그아웃</button>
+      <button id="btnTokenLive" class="secondary">ID 토큰(실시간) 보기</button>
+      <span id="authState" class="pill">로그아웃 상태</span>
+    </div>
+    <div class="inline" style="margin-top:10px">
+      <button id="btnStoredShow" class="secondary">저장된 토큰 보기</button>
+      <button id="btnStoredClear" class="secondary">저장된 토큰 삭제</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>2) API 호출 (https://api.mayservice.co.kr)</legend>
+
+    <div class="inline" style="margin-bottom:8px">
+      <button id="btnMy" class="secondary">GET /api/booking/my</button>
+      <button id="btnAll" class="secondary">GET /api/booking/admin</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Booking ID (조회/삭제용)</label>
+        <input id="bookingIdInput" type="text" placeholder="예: 1885fae6-...." />
+        <div class="inline" style="margin-top:8px">
+          <button id="btnGetById" class="secondary">GET /api/booking/:id</button>
+          <button id="btnDelete" class="danger">DELETE /api/booking/:id</button>
+        </div>
+      </div>
+
+      <div>
+        <label>assistanceType</label>
+        <select id="assistanceType">
+          <option value="길안내및 이동보조">길안내및 이동보조</option>
+          <option value="접수및행정보조">접수및행정보조</option>
+          <option value="장보기 보조">장보기 보조</option>
+          <option value="기타">기타</option>
+        </select>
+        <label style="margin-top:8px">roundTrip</label>
+        <select id="roundTrip">
+          <option value="false">편도</option>
+          <option value="true">왕복</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row-3" style="margin-top:8px">
+      <div>
+        <label>startBookingTime (ISO)</label>
+        <input id="startTime" type="datetime-local" />
+      </div>
+      <div>
+        <label>endBookingTime (ISO)</label>
+        <input id="endTime" type="datetime-local" />
+      </div>
+      <div>
+        <label>seniorId (가족 계정일 때 필수)</label>
+        <input id="seniorId" type="text" placeholder="가족 계정일 때만 입력" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <div>
+        <label>departureAddress</label>
+        <input id="departure" type="text" placeholder="출발지 주소" />
+      </div>
+      <div>
+        <label>destinationAddress</label>
+        <input id="destination" type="text" placeholder="도착지 주소" />
+      </div>
+    </div>
+
+    <label style="margin-top:8px">additionalRequests</label>
+    <textarea id="additional" rows="2" placeholder="요청사항 (선택)"></textarea>
+
+    <div class="inline" style="margin-top:10px">
+      <button id="btnCreate" class="primary">POST /api/booking (예약 생성)</button>
+    </div>
+  </fieldset>
+
+  <h3>로그</h3>
+  <pre id="log"><code>// 여기 로그가 출력됩니다.</code></pre>
+
+  <!-- Firebase Web SDK (ESM) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // ====== 설정 ======
+    const API_BASE = "https://api.mayservice.co.kr";
+    const firebaseConfig = {
+      apiKey: "AIzaSyAaHhbv_xlkIwgp8BDI4ekkmRBl9bLI_pw",
+      authDomain: "projectmay-358b7.firebaseapp.com",
+      projectId: "projectmay-358b7",
+      storageBucket: "projectmay-358b7.firebasestorage.app",
+      messagingSenderId: "527237934658",
+      appId: "1:527237934658:web:a6351a12ea9f9de13007db",
+      measurementId: "G-VQWRV48PQF"
+    };
+
+    // ====== Firebase init ======
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // ====== DOM helpers ======
+    const $ = (sel) => document.querySelector(sel);
+    const logEl = $("#log");
+    const emailOut = $("#normalizedEmail");
+    const stateEl = $("#authState");
+
+    function log(obj, title = "") {
+      const time = new Date().toLocaleTimeString();
+      const prefix = title ? `[${time}] ${title}\n` : `[${time}] `;
+      logEl.textContent = prefix + (typeof obj === "string" ? obj : JSON.stringify(obj, null, 2)) + "\n\n" + logEl.textContent;
+    }
+
+    function normalizeEmail(id) {
+      const trimmed = (id || "").trim();
+      if (!trimmed) return "";
+      if (trimmed.includes("@")) return trimmed;
+      return `${trimmed}@may.com`;
+    }
+
+    function getStoredToken() {
+      return localStorage.getItem("idToken") || "";
+    }
+
+    async function refreshAndStoreToken() {
+      const u = auth.currentUser;
+      if (!u) throw new Error("로그인 필요");
+      const token = await u.getIdToken(true); // force refresh
+      localStorage.setItem("idToken", token);
+      return token;
+    }
+
+    // ====== API 호출 helper (쿠키 + Authorization) ======
+    async function apiFetch(path, options = {}) {
+      const token = getStoredToken();
+      const headers = new Headers(options.headers || {});
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+      headers.set("Content-Type", headers.get("Content-Type") || "application/json");
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+        credentials: "include", // ★ 쿠키 항상 전송/저장
+      });
+      const text = await res.text();
+      let data;
+      try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+      if (!res.ok) {
+        const err = { status: res.status, statusText: res.statusText, data };
+        throw err;
+      }
+      return data;
+    }
+
+    // ====== Auth UI ======
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        stateEl.textContent = "로그인 상태";
+        stateEl.style.background = "#dcfce7";
+        stateEl.style.color = "#166534";
+        log({ uid: user.uid, email: user.email }, "onAuthStateChanged: signed-in");
+      } else {
+        stateEl.textContent = "로그아웃 상태";
+        stateEl.style.background = "#fee2e2";
+        stateEl.style.color = "#991b1b";
+        log("signed-out", "onAuthStateChanged");
+      }
+    });
+
+    $("#idInput").addEventListener("input", (e) => {
+      emailOut.textContent = normalizeEmail(e.target.value) || "-";
+    });
+
+    // ====== 로그인 / 로그아웃 / 토큰 ======
+    $("#btnLogin").addEventListener("click", async () => {
+      const id = $("#idInput").value;
+      const pw = $("#pwInput").value;
+      const email = normalizeEmail(id);
+      emailOut.textContent = email || "-";
+      if (!email || !pw) return log("아이디/비밀번호를 입력하세요.", "검증");
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, pw);
+        log({ uid: cred.user.uid, email: cred.user.email }, "로그인 성공");
+
+        // 로그인 직후 토큰 저장
+        const token = await cred.user.getIdToken(true);
+        localStorage.setItem("idToken", token);
+        log("idToken이 localStorage에 저장되었습니다.", "저장");
+      } catch (err) {
+        log(err, "로그인 실패");
+      }
+    });
+
+    $("#btnLogout").addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        log("로그아웃 완료", "로그아웃");
+      } catch (err) {
+        log(err, "로그아웃 오류");
+      }
+    });
+
+    $("#btnTokenLive").addEventListener("click", async () => {
+      const u = auth.currentUser;
+      if (!u) return log("로그인 필요", "ID 토큰");
+      try {
+        const token = await u.getIdToken(true);
+        localStorage.setItem("idToken", token);
+        log({ token: token.slice(0, 40) + "...", length: token.length }, "ID 토큰(실시간 & 저장)");
+      } catch (err) {
+        log(err, "ID 토큰 오류");
+      }
+    });
+
+    $("#btnStoredShow").addEventListener("click", () => {
+      const t = getStoredToken();
+      if (t) log({ token: t.slice(0, 40) + "...", length: t.length }, "저장된 토큰");
+      else log("저장된 토큰 없음", "저장된 토큰");
+    });
+
+    $("#btnStoredClear").addEventListener("click", () => {
+      localStorage.removeItem("idToken");
+      log("저장된 idToken 삭제", "저장 토큰");
+    });
+
+    // ====== API 버튼들 ======
+    $("#btnMy").addEventListener("click", async () => {
+      try {
+        const data = await apiFetch("/api/booking/my", { method: "GET" });
+        log(data, "GET /api/booking/my");
+      } catch (err) {
+        log(err, "GET /api/booking/my 오류");
+      }
+    });
+
+    $("#btnAll").addEventListener("click", async () => {
+      try {
+        const data = await apiFetch("/api/booking/admin", { method: "GET" });
+        log(data, "GET /api/booking/admin");
+      } catch (err) {
+        log(err, "GET /api/booking/admin 오류");
+      }
+    });
+
+    $("#btnGetById").addEventListener("click", async () => {
+      const id = $("#bookingIdInput").value.trim();
+      if (!id) return log("Booking ID를 입력하세요.", "검증");
+      try {
+        const data = await apiFetch(`/api/booking/${encodeURIComponent(id)}`, { method: "GET" });
+        log(data, `GET /api/booking/${id}`);
+      } catch (err) {
+        log(err, `GET /api/booking/${id} 오류`);
+      }
+    });
+
+    $("#btnDelete").addEventListener("click", async () => {
+      const id = $("#bookingIdInput").value.trim();
+      if (!id) return log("Booking ID를 입력하세요.", "검증");
+      try {
+        const data = await apiFetch(`/api/booking/${encodeURIComponent(id)}`, { method: "DELETE" });
+        log(data, `DELETE /api/booking/${id}`);
+      } catch (err) {
+        log(err, `DELETE /api/booking/${id} 오류`);
+      }
+    });
+
+    // ====== 예약 생성 ======
+    $("#btnCreate").addEventListener("click", async () => {
+      // 값 수집
+      const start = $("#startTime").value;
+      const end = $("#endTime").value;
+      const dep = $("#departure").value.trim();
+      const dest = $("#destination").value.trim();
+      const roundTrip = $("#roundTrip").value === "true";
+      const assistanceType = $("#assistanceType").value;
+      const additionalRequests = $("#additional").value.trim() || undefined;
+      const seniorId = $("#seniorId").value.trim() || undefined;
+
+      // payload (백엔드에서 family/senior 구분은 서버가 userType으로 판단)
+      const payload = {
+        startBookingTime: start ? new Date(start).toISOString() : undefined,
+        endBookingTime: end ? new Date(end).toISOString() : undefined,
+        departureAddress: dep || undefined,
+        destinationAddress: dest || undefined,
+        roundTrip,
+        assistanceType,
+        additionalRequests,
+        ...(seniorId ? { seniorId } : {})
+      };
+
+      try {
+        const data = await apiFetch("/api/booking", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        log(data, "POST /api/booking (생성)");
+      } catch (err) {
+        log(err, "POST /api/booking 오류");
+      }
+    });
+
+    // ====== 기본값(지금 시각+1h) 세팅 ======
+    function pad(n){return n.toString().padStart(2,"0")}
+    const now = new Date();
+    const plus1 = new Date(now.getTime() + 60*60*1000);
+    const toLocal = (d)=> `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    $("#startTime").value = toLocal(now);
+    $("#endTime").value = toLocal(plus1);
+  </script>
+</body>
+</html>
