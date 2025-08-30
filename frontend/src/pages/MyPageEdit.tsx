@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import Button from "@/components/button/Button";
-import Input from "@/components/Input";
+import Input from '@/components/Input'
 import Modal from "@/components/Modal";
 import { useNavigate } from "react-router-dom";
 import { useUIStore } from "@/store/uiStore";
