@@ -7,7 +7,7 @@ import ReservationCard from "@/components/ReservationCard";
 import { useUserStore } from "@/store/userStore";
 import { auth as firebaseAuth } from "@/services/firebase";
 
-const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
+const BASE_URL = "https://api.mayservice.co.kr/api/booking";
 
 type ReservationCardStatus = "reserved" | "ongoing" | "finished";
 

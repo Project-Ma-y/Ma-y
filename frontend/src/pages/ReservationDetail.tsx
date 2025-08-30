@@ -8,7 +8,7 @@ import axios from "axios";
 import { auth as firebaseAuth } from "@/services/firebase";
 
 // 백엔드 베이스 URL (배포 주소/프록시 환경에 맞게 조정)
-const BASE_URL = "https://ma-y-5usy.onrender.com/api/booking";
+const BASE_URL = "https://api.mayservice.co.kr/api/booking";
 
 // ===== Types =====
 interface SeniorProfile {
