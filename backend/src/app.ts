@@ -30,7 +30,11 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://project-ma-y.github.io"
+  "https://project-ma-y.github.io",
+  "https://mayservice.netlify.app",
+  "https://mayservice.co.kr",
+  "https://www.mayservice.co.kr",
+  "https://app.mayservice.co.kr"
 ];
 
 const app: Express = express();
@@ -50,7 +54,8 @@ app.use(
         callback(new Error("Not allowed by CORS")); // ❌ 차단
       }
     },
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Authorization','Content-Type'],
   })
 );
 app.use("/api/booking", bookingsRouter);

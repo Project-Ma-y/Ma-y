@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>부모 회원가입 테스트 (POST /signupSenior)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+    body { margin: 0; padding: 24px; background: #f7f7f9; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .row label { font-weight: 600; }
+    input[type="text"], input[type="password"], input[type="date"], input[type="tel"], input[type="url"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #fff; color: #111827; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .ok { color: #065f46; }
+    .warn { color: #92400e; }
+    .err { color: #991b1b; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .parent { border: 1px dashed #d1d5db; border-radius: 10px; padding: 12px; margin-top: 10px; }
+    .parent h3 { margin: 0 0 8px; font-size: 14px; color: #374151; display: flex; justify-content: space-between; align-items: center; }
+    .remove { background: #fff; color: #991b1b; border-color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <h1>부모 회원가입 테스트 <span class="muted">POST /signupSenior</span></h1>
+
+  <div class="card">
+    <div class="row">
+      <label for="endpoint">API Endpoint</label>
+      <input id="endpoint" type="url" placeholder="https://your-api.example.com/api/signupSenior" />
+    </div>
+    <div class="muted">라우터가 <code>router.post("/signupSenior", ...)</code> 라면 서버 기준 상위 경로가 <code>/api</code>로 설정돼 있을 수 있습니다. 실제 경로로 수정해 주세요.</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label for="token">idToken (로컬스토리지)</label>
+      <input id="token" type="text" placeholder="localStorage.idToken 에서 자동 로드" />
+    </div>
+    <div class="actions">
+      <button id="reloadToken" class="secondary">토큰 다시 불러오기</button>
+      <button id="saveToken" class="secondary">이 값을 localStorage.idToken 으로 저장</button>
+    </div>
+    <div id="tokenStatus" class="muted"></div>
+  </div>
+
+  <div class="card">
+    <div class="actions" style="margin-bottom:8px">
+      <button id="addParent" class="secondary">+ 부모 입력 추가</button>
+      <button id="fillExample" class="secondary">예시 데이터 채우기</button>
+    </div>
+    <div id="parents"></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="send">요청 보내기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="muted"></div></div>
+    <pre id="outReq"><code></code></pre>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>응답</label><div id="status" class="muted"></div></div>
+    <pre id="out"><code></code></pre>
+  </div>
+
+  <template id="parentTemplate">
+    <div class="parent">
+      <h3>부모 정보 <button class="remove" type="button">삭제</button></h3>
+      <div class="row"><label>아이디(id)</label><input class="p-id" type="text" placeholder="parent01" /></div>
+      <div class="row"><label>이름(name)</label><input class="p-name" type="text" placeholder="홍길동" /></div>
+      <div class="row"><label>전화(phone)</label><input class="p-phone" type="tel" placeholder="01012345678" /></div>
+      <div class="row"><label>성별(gender)</label>
+        <select class="p-gender">
+          <option value="male">male</option>
+          <option value="female">female</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+      <div class="row"><label>생년월일(birthdate)</label><input class="p-birth" type="date" /></div>
+      <div class="row"><label>관계(relation)</label><input class="p-relation" type="text" placeholder="아버지 / 어머니 등" /></div>
+      <div class="row"><label>비밀번호(password)</label><input class="p-password" type="password" placeholder="영문+숫자 8자 이상" /></div>
+    </div>
+  </template>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+    // Token handling
+    function loadTokenFromLocalStorage(){
+      const t = localStorage.getItem('idToken') || '';
+      $('#token').value = t;
+      $('#tokenStatus').innerHTML = t
+        ? `<span class="ok">localStorage.idToken 로드됨 (${t.slice(0,12)}…)</span>`
+        : `<span class="warn">localStorage.idToken 이 비어 있습니다. Firebase 로그인 후 다시 시도하거나, 위 입력란에 직접 붙여넣고 저장하세요.</span>`;
+    }
+    function saveTokenToLocalStorage(){
+      localStorage.setItem('idToken', $('#token').value.trim());
+      loadTokenFromLocalStorage();
+    }
+    $('#reloadToken').addEventListener('click', loadTokenFromLocalStorage);
+    $('#saveToken').addEventListener('click', saveTokenToLocalStorage);
+    loadTokenFromLocalStorage();
+
+    // Parents UI
+    function addParent(values){
+      const tpl = document.getElementById('parentTemplate');
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      if (values){
+        node.querySelector('.p-id').value = values.id || '';
+        node.querySelector('.p-name').value = values.name || '';
+        node.querySelector('.p-phone').value = values.phone || '';
+        node.querySelector('.p-gender').value = values.gender || 'male';
+        node.querySelector('.p-birth').value = values.birthdate || '';
+        node.querySelector('.p-relation').value = values.relation || '';
+        node.querySelector('.p-password').value = values.password || '';
+      }
+      node.querySelector('.remove').addEventListener('click', () => node.remove());
+      $('#parents').appendChild(node);
+    }
+
+    $('#addParent').addEventListener('click', () => addParent());
+
+    $('#fillExample').addEventListener('click', () => {
+      $('#parents').innerHTML = '';
+      addParent({ id: 'parent01', name: '홍길동', phone: '01012345678', gender: 'male', birthdate: '1970-05-15', relation: '아버지', password: 'Passw0rd!' });
+      addParent({ id: 'parent02', name: '김영희', phone: '01098765432', gender: 'female', birthdate: '1972-07-22', relation: '어머니', password: 'Passw0rd!' });
+    });
+
+    // Build request body
+    function buildBody(){
+      const parents = $$('.parent').map(p => ({
+        id: p.querySelector('.p-id').value.trim(),
+        name: p.querySelector('.p-name').value.trim(),
+        phone: p.querySelector('.p-phone').value.trim(),
+        gender: p.querySelector('.p-gender').value,
+        birthdate: p.querySelector('.p-birth').value, // YYYY-MM-DD
+        relation: p.querySelector('.p-relation').value.trim(),
+        password: p.querySelector('.p-password').value
+      }));
+      return { parents };
+    }
+
+    function previewRequest(url, headers, body){
+      const redactedAuth = headers.Authorization ? headers.Authorization.replace(/Bearer\s+([A-Za-z0-9-_]+)\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/, 'Bearer $1.***.***') : '';
+      const h = {...headers, Authorization: redactedAuth };
+      $('#reqPreview').textContent = `${url}`;
+      $('#outReq').textContent = JSON.stringify({ method: 'POST', url, headers: h, body }, null, 2);
+    }
+
+    async function send(){
+      const url = $('#endpoint').value.trim();
+      const idToken = $('#token').value.trim();
+      if (!url){
+        alert('API Endpoint 를 입력해 주세요.');
+        return;
+      }
+      if (!idToken){
+        alert('idToken 이 없습니다. localStorage.idToken 을 확인해 주세요.');
+        return;
+      }
+
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` };
+      const body = buildBody();
+
+      // 간단 유효성 체크
+      if (!Array.isArray(body.parents) || body.parents.length === 0){
+        alert('부모 정보가 최소 1명 필요합니다.');
+        return;
+      }
+
+      previewRequest(url, headers, body);
+
+      $('#status').textContent = '요청 중…';
+      $('#out').textContent = '';
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          mode: 'cors',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify(body)
+        });
+        const text = await resp.text();
+        let parsed; try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
+        $('#status').innerHTML = `HTTP <strong>${resp.status}</strong> ${resp.ok ? '<span class="ok">OK</span>' : '<span class="err">ERROR</span>'}`;
+
+        const usefulHeaders = {};
+        resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
+
+        $('#out').textContent = JSON.stringify({
+          status: resp.status,
+          ok: resp.ok,
+          headers: usefulHeaders,
+          data: parsed
+        }, null, 2);
+      } catch (e){
+        $('#status').innerHTML = '<span class="err">네트워크 에러</span>';
+        $('#out').textContent = String(e);
+      }
+    }
+
+    (function setDefaultEndpoint(){
+      // 합리적인 기본값 후보
+      const guesses = [
+        'https://ma-y-5usy.onrender.com/api/auth/signupSenior',
+        'http://localhost:3000/api/signupSenior',
+        'http://127.0.0.1:3000/api/signupSenior'
+      ];
+      $('#endpoint').value = guesses[0];
+    })();
+
+    // 초기 부모 1명 입력칸 생성
+    addParent();
+
+    $('#send').addEventListener('click', send);
+  </script>
+</body>
+</html>

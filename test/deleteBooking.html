@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>예약 삭제 테스트 (DELETE /booking/:id)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+    body { margin: 0; padding: 24px; background: #f7f7f9; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .row label { font-weight: 600; }
+    input[type="text"], input[type="url"] { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #fff; color: #111827; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .ok { color: #065f46; }
+    .err { color: #991b1b; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>예약 삭제 테스트 <span class="muted">DELETE /booking/:id</span></h1>
+
+  <div class="card">
+    <div class="row">
+      <label for="base">API Base</label>
+      <input id="base" type="url" placeholder="https://your-api.example.com/api/booking" />
+    </div>
+    <div class="row">
+      <label for="id">Booking ID</label>
+      <input id="id" type="text" placeholder="삭제할 예약 ID" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label for="token">idToken (로컬스토리지)</label>
+      <input id="token" type="text" placeholder="localStorage.idToken 에서 자동 로드" />
+    </div>
+    <div class="actions">
+      <button id="reloadToken" class="secondary">토큰 다시 불러오기</button>
+      <button id="saveToken" class="secondary">이 값을 localStorage.idToken 으로 저장</button>
+    </div>
+    <div id="tokenStatus" class="muted"></div>
+  </div>
+
+  <div class="card">
+    <div class="actions">
+      <button id="sendDelete">삭제 요청 보내기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="muted"></div></div>
+    <pre id="outReq"><code></code></pre>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>응답</label><div id="status" class="muted"></div></div>
+    <pre id="out"><code></code></pre>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+
+    function loadToken(){
+      const t = localStorage.getItem('idToken') || '';
+      $('#token').value = t;
+      $('#tokenStatus').innerHTML = t
+        ? `<span class="ok">localStorage.idToken 로드됨 (${t.slice(0,12)}…)</span>`
+        : `idToken 이 비어 있습니다. Firebase 로그인 후 다시 시도하거나, 위 입력란에 직접 저장하세요.`;
+    }
+    function saveToken(){ localStorage.setItem('idToken', $('#token').value.trim()); loadToken(); }
+    $('#reloadToken').addEventListener('click', loadToken);
+    $('#saveToken').addEventListener('click', saveToken);
+    loadToken();
+
+    (function setDefaults(){
+      const guesses = [
+        'https://ma-y-5usy.onrender.com/api/booking',
+        'http://localhost:3000/api/booking',
+        'http://127.0.0.1:3000/api/booking'
+      ];
+      $('#base').value = guesses[0];
+    })();
+
+    function preview(url, headers){
+      const redactedAuth = headers.Authorization ? headers.Authorization.replace(/Bearer\s+([A-Za-z0-9-_]+)\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/, 'Bearer $1.***.***') : '';
+      const h = {...headers, Authorization: redactedAuth };
+      $('#reqPreview').textContent = url;
+      $('#outReq').textContent = JSON.stringify({ method: 'DELETE', url, headers: h }, null, 2);
+    }
+
+    async function doDelete(){
+      const base = $('#base').value.trim();
+      const id = $('#id').value.trim();
+      const idToken = $('#token').value.trim();
+      if (!base || !id) return alert('API Base와 Booking ID를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다. localStorage.idToken을 확인하세요.');
+
+      const url = `${base.replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+      const headers = { 'Authorization': `Bearer ${idToken}` };
+      preview(url, headers);
+
+      $('#status').textContent = '요청 중…';
+      $('#out').textContent = '';
+
+      try{
+        const resp = await fetch(url, {
+          method: 'DELETE',
+          mode: 'cors',
+          credentials: 'include',
+          headers
+        });
+        const text = await resp.text();
+        let parsed; try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
+        $('#status').innerHTML = `HTTP <strong>${resp.status}</strong> ${resp.ok ? '<span class="ok">OK</span>' : '<span class="err">ERROR</span>'}`;
+        const usefulHeaders = {}; resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
+        $('#out').textContent = JSON.stringify({ status: resp.status, ok: resp.ok, headers: usefulHeaders, data: parsed }, null, 2);
+      }catch(e){
+        $('#status').innerHTML = '<span class="err">네트워크 에러</span>';
+        $('#out').textContent = String(e);
+      }
+    }
+
+    $('#sendDelete').addEventListener('click', doDelete);
+  </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ import { db } from "../utils/firebase";
 import { BookingPayload } from "../interfaces/booking";
 import { v4 as uuidv4 } from "uuid";
 import { platform } from "os";
+const admin = require("firebase-admin");
 
 const BOOKINGS_COLLECTION = "bookings";
 const collectionRef = db.collection(BOOKINGS_COLLECTION);
@@ -50,9 +51,11 @@ export async function getBookingByIdService(bookingId: string) {
 
 export async function getMyBookingsService(userId: string) {
   try {
-    const snapshot = await collectionRef
-      .where("userId", "==", userId)
-      .get();
+const snapshot = await collectionRef
+  .where("userId", "==", userId)
+  .where("isDeleted", "==", false)
+  .get();
+
 
     return snapshot.docs.map((doc: any) => ({
       id: doc.id,
@@ -61,5 +64,29 @@ export async function getMyBookingsService(userId: string) {
   } catch (error: any) {
     console.error("❌ 내 예약 불러오기 실패:", error);
     throw new Error(`내 예약 불러오기 중 오류 발생: ${error.message}`);
+  }
+}
+
+
+export async function deleteBookingService(bookingId: string) {
+  try {
+      if (!bookingId) {
+      const error = new Error("bookingId가 존재하지 않습니다");
+      (error as any).code = 400;
+      throw error;
+    }
+
+    // Firestore에서 삭제
+    //await collectionRef.doc(userId).delete();
+    await db.collection("bookings").doc(bookingId).update({
+      isDeleted: true,
+      deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { message: "예약 삭제 성공" };
+
+  } catch (error: any) {
+    console.error("❌ 예약 삭제 실패:", error);
+    throw new Error(`예약 삭제 중 오류 발생: ${error.message}`);
   }
 }
