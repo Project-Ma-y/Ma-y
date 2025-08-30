@@ -1,6 +1,12 @@
 // src/lib/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { api } from "@/lib/api";
+
+const idToken = await getAuth().currentUser?.getIdToken();
+await api.get("/users/me", {
+  headers: { Authorization: `Bearer ${idToken}` },
+});
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaHhbv_xlkIwgp8BDI4ekkmRBl9bLI_pw",
