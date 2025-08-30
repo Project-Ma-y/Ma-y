@@ -10,10 +10,6 @@ import { getAuth } from "firebase/auth";
  */
 const ENV_BASE = (import.meta.env.VITE_API_URL as string) || "https://api.mayservice.co.kr/api/";
 
-const FALLBACKS = [
-  "https://ma-y-5usy.onrender.com/api/",
-];
-
 const normalizeBase = (u: string) => {
   let s = (u || "").trim();
   if (!/^https?:\/\//i.test(s)) s = "https://" + s;

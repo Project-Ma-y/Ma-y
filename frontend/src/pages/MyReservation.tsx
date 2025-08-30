@@ -106,10 +106,7 @@ export default function MyReservations() {
 
       try {
         // ✅ 토큰은 인터셉터에서 자동 부착(환경에 따라 아래 주석 해제 가능)
-        const url = `/booking/my`;
-        logInfo("예약 목록 요청 시작:", url);
-
-        const resp = await api.get<Reservation[]>(url, { withCredentials: true });
+        const resp = await api.get<Reservation[]>("/booking/my"); 
         const data = resp.data ?? [];
         logInfo("예약 원본 데이터 수:", data?.length ?? 0);
 
