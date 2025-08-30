@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { admin } from "../utils/firebase";
 import { initSession, updateSession } from "../services/sessionService";
+import { SessionCookieOptions } from "firebase-admin/auth";
+import { sessionCookieOpts } from "../middleware/sessionMiddleware";
 
 //최초 접속
 export const updateLanding = async (req: Request, res: Response) => {
@@ -10,7 +12,7 @@ export const updateLanding = async (req: Request, res: Response) => {
     let sessionId = req.cookies.sessionId;
     if (!sessionId) {
       sessionId = await initSession(req.user?.uid || "");
-      res.status(201).cookie("sessionId", sessionId, { httpOnly: true, secure: true, sameSite: "none" }).json({ message: "세션 생성 성공"});
+      res.status(201).cookie("sessionId", sessionId, sessionCookieOpts).json({ message: "세션 생성 성공"});
     }
     else{
       res.status(200).json({ message: `이미 세션이 있습니다. sessionId: ${sessionId}`});
