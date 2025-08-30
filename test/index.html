@@ -41,6 +41,8 @@
   <div class="row-inline">
     <button id="btnToken" class="secondary" type="button">ID 토큰 보기</button>
     <button id="btnLogout" class="secondary" type="button">로그아웃</button>
+    <button id="btnStored" class="secondary" type="button">저장된 토큰 보기</button>
+    <button id="btnClear" class="secondary" type="button">저장된 토큰 삭제</button>
     <span id="authState" class="pill">로그아웃 상태</span>
   </div>
 
@@ -53,7 +55,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getAnalytics, isSupported as analyticsSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
 
     // ---- Firebase 설정 ----
     const firebaseConfig = {
@@ -68,8 +69,6 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    // (선택) Analytics는 지원 환경에서만
-    try { if (await analyticsSupported()) getAnalytics(app); } catch {}
 
     // ---- 유틸 ----
     const $ = (sel) => document.querySelector(sel);
@@ -123,18 +122,24 @@
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         log({ uid: cred.user.uid, email: cred.user.email }, "로그인 성공");
+
+        // 로그인 성공 → 토큰 발급 + 로컬스토리지 저장
+        const token = await cred.user.getIdToken(/* forceRefresh */ true);
+        localStorage.setItem("idToken", token);
+        log("idToken이 localStorage에 저장되었습니다.", "저장");
+
       } catch (err) {
         log(err instanceof Error ? { name: err.name, message: err.message } : err, "로그인 실패");
       }
     });
 
-    // ---- ID 토큰 보기 ----
+    // ---- 현재 ID 토큰 보기 ----
     document.getElementById("btnToken").addEventListener("click", async () => {
       const u = auth.currentUser;
       if (!u) return log("현재 로그인된 사용자가 없습니다.", "ID 토큰");
       try {
         const token = await u.getIdToken(/* forceRefresh */ true);
-        log({ token: token.slice(0, 32) + "...(truncated)", length: token.length }, "ID 토큰");
+        log({ token: token.slice(0, 40) + "...", length: token.length }, "ID 토큰(실시간)");
       } catch (err) {
         log(err instanceof Error ? { name: err.name, message: err.message } : err, "ID 토큰 오류");
       }
@@ -148,6 +153,22 @@
       } catch (err) {
         log(err instanceof Error ? { name: err.name, message: err.message } : err, "로그아웃 오류");
       }
+    });
+
+    // ---- 저장된 토큰 보기 ----
+    document.getElementById("btnStored").addEventListener("click", () => {
+      const stored = localStorage.getItem("idToken");
+      if (stored) {
+        log({ token: stored.slice(0, 40) + "...", length: stored.length }, "저장된 토큰");
+      } else {
+        log("저장된 토큰이 없습니다.", "저장된 토큰");
+      }
+    });
+
+    // ---- 저장된 토큰 삭제 ----
+    document.getElementById("btnClear").addEventListener("click", () => {
+      localStorage.removeItem("idToken");
+      log("저장된 idToken을 삭제했습니다.", "삭제");
     });
 
     // ---- 아이디 입력 시 이메일 미리보기 업데이트 ----
