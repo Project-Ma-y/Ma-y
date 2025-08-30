@@ -34,7 +34,8 @@ const allowedOrigins = [
   "https://mayservice.netlify.app",
   "https://mayservice.co.kr",
   "https://www.mayservice.co.kr",
-  "https://app.mayservice.co.kr"
+  "https://app.mayservice.co.kr",
+  "https://testfforb--mayservice.netlify.app"
 ];
 
 const app: Express = express();
