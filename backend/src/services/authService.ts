@@ -42,8 +42,8 @@ export const registerUser = async (
             name: payload.name,
             phone: payload.phone,
             gender: payload.gender,
-            address: payload.address,
-            birthdate: payload.birthdate,
+            address: payload.address || '',
+            birthdate: payload.birthdate || '',
 
             createdAt: Date.now(),
             updatedAt: Date.now()
