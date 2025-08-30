@@ -18,6 +18,9 @@ interface UserState {
   fetchUserProfile: () => Promise<void>;
 }
 
+console.log("API URL:", import.meta.env.VITE_API_URL);
+
+
 export const useUserStore = create<UserState>()(
   devtools((set, get) => ({
     user: null,
