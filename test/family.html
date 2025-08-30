@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>가족 추가/수정/삭제 통합 테스트</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+    body { margin: 0; padding: 24px; background: #f7f7f9; }
+    h1 { margin: 0 0 16px; font-size: 20px; }
+    h2 { margin: 0 0 12px; font-size: 16px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .row { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .row label { font-weight: 600; }
+    input[type="text"], input[type="date"], input[type="tel"], input[type="url"], input[type="password"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: #111827; color: #fff; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #fff; color: #111827; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .ok { color: #065f46; }
+    .warn { color: #92400e; }
+    .err { color: #991b1b; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 10px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+    .parent { border: 1px dashed #d1d5db; border-radius: 10px; padding: 12px; margin-top: 10px; }
+    .parent h3 { margin: 0 0 8px; font-size: 14px; color: #374151; display: flex; justify-content: space-between; align-items: center; }
+    .remove { background: #fff; color: #991b1b; border-color: #fca5a5; }
+  </style>
+</head>
+<body>
+  <h1>가족 추가/수정/삭제 통합 테스트</h1>
+
+  <!-- 공통 설정 -->
+  <div class="card">
+    <h2>공통</h2>
+    <div class="row">
+      <label for="base">API Base</label>
+      <input id="base" type="url" placeholder="https://your-api.example.com/api" />
+    </div>
+    <div class="row">
+      <label for="token">idToken (로컬스토리지)</label>
+      <input id="token" type="text" placeholder="localStorage.idToken 에서 자동 로드" />
+    </div>
+    <div class="actions">
+      <button id="reloadToken" class="secondary">토큰 다시 불러오기</button>
+      <button id="saveToken" class="secondary">이 값을 localStorage.idToken 으로 저장</button>
+    </div>
+    <div id="tokenStatus" class="muted"></div>
+  </div>
+
+  <!-- 가족 추가: POST /family -->
+  <div class="card">
+    <h2>가족 추가 <span class="muted">POST /family (body에 registeredFamily 배열)</span></h2>
+    <div class="actions" style="margin-bottom:8px">
+      <button id="addParent" class="secondary">+ 가족 입력 추가</button>
+      <button id="fillExampleAdd" class="secondary">예시 데이터 채우기</button>
+    </div>
+    <div id="parents"></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="sendAdd">추가 요청 보내기</button>
+    </div>
+  </div>
+
+  <!-- 가족 수정: PUT /family/:mid -->
+  <div class="card">
+    <h2>가족 수정 <span class="muted">PUT /family/:mid</span></h2>
+    <div class="row"><label>memberId (mid)</label><input id="midUpdate" type="text" placeholder="수정할 가족의 memberId" /></div>
+    <div class="row"><label>name</label><input id="u_name" type="text" placeholder="홍길동" /></div>
+    <div class="row"><label>phone</label><input id="u_phone" type="tel" placeholder="01012345678" /></div>
+    <div class="row"><label>gender</label><select id="u_gender"><option value="">(선택)</option><option value="male">male</option><option value="female">female</option><option value="other">other</option></select></div>
+    <div class="row"><label>birthdate</label><input id="u_birthdate" type="date" /></div>
+    <div class="row"><label>relation</label><input id="u_relation" type="text" placeholder="아버지 / 어머니 등" /></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="sendUpdate">수정 요청 보내기</button>
+    </div>
+  </div>
+
+  <!-- 가족 삭제: DELETE /family/:mid -->
+  <div class="card">
+    <h2>가족 삭제 <span class="muted">DELETE /family/:mid</span></h2>
+    <div class="row"><label>memberId (mid)</label><input id="midDelete" type="text" placeholder="삭제할 가족의 memberId" /></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="sendDelete" class="secondary" style="border-color:#ef4444;color:#991b1b">삭제 요청 보내기</button>
+    </div>
+  </div>
+
+  <!-- 요청/응답 로그 -->
+  <div class="card">
+    <div class="row"><label>요청 미리보기</label><div id="reqPreview" class="muted"></div></div>
+    <pre id="outReq"><code></code></pre>
+  </div>
+
+  <div class="card">
+    <div class="row"><label>응답</label><div id="status" class="muted"></div></div>
+    <pre id="out"><code></code></pre>
+  </div>
+
+  <template id="parentTemplate">
+    <div class="parent">
+      <h3>가족 정보 <button class="remove" type="button">삭제</button></h3>
+      <div class="row"><label>name</label><input class="p-name" type="text" placeholder="홍길동" /></div>
+      <div class="row"><label>phone</label><input class="p-phone" type="tel" placeholder="01012345678" /></div>
+      <div class="row"><label>gender</label>
+        <select class="p-gender">
+          <option value="">(선택)</option>
+          <option value="male">male</option>
+          <option value="female">female</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+      <div class="row"><label>birthdate</label><input class="p-birth" type="date" /></div>
+      <div class="row"><label>relation</label><input class="p-relation" type="text" placeholder="아버지 / 어머니 등" /></div>
+    </div>
+  </template>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+    // Token helpers
+    function loadToken(){
+      const t = localStorage.getItem('idToken') || '';
+      $('#token').value = t;
+      $('#tokenStatus').innerHTML = t
+        ? `<span class="ok">localStorage.idToken 로드됨 (${t.slice(0,12)}…)</span>`
+        : `<span class="warn">localStorage.idToken 이 비어 있습니다. Firebase 로그인 후 재시도하거나, 위 입력란에 직접 저장하세요.</span>`;
+    }
+    function saveToken(){ localStorage.setItem('idToken', $('#token').value.trim()); loadToken(); }
+    $('#reloadToken').addEventListener('click', loadToken);
+    $('#saveToken').addEventListener('click', saveToken);
+    loadToken();
+
+    // Defaults
+    (function setDefaults(){
+      const guesses = [
+        'https://ma-y-5usy.onrender.com/api',
+        'http://localhost:3000/api',
+        'http://127.0.0.1:3000/api'
+      ];
+      $('#base').value = guesses[0];
+    })();
+
+    // Parents UI for add
+    function addParent(values){
+      const tpl = document.getElementById('parentTemplate');
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      if (values){
+        node.querySelector('.p-name').value = values.name || '';
+        node.querySelector('.p-phone').value = values.phone || '';
+        node.querySelector('.p-gender').value = values.gender || '';
+        node.querySelector('.p-birth').value = values.birthdate || '';
+        node.querySelector('.p-relation').value = values.relation || '';
+      }
+      node.querySelector('.remove').addEventListener('click', () => node.remove());
+      $('#parents').appendChild(node);
+    }
+    $('#addParent').addEventListener('click', () => addParent());
+    addParent(); // one by default
+
+    $('#fillExampleAdd').addEventListener('click', () => {
+      $('#parents').innerHTML = '';
+      addParent({ name: '홍길동', phone: '01012345678', gender: 'male', birthdate: '1970-05-15', relation: '아버지' });
+      addParent({ name: '김영희', phone: '01098765432', gender: 'female', birthdate: '1972-07-22', relation: '어머니' });
+    });
+
+    function buildAddBody(){
+      const registeredFamily = $$('.parent').map(p => ({
+        name: p.querySelector('.p-name').value.trim(),
+        phone: p.querySelector('.p-phone').value.trim(),
+        gender: p.querySelector('.p-gender').value,
+        birthdate: p.querySelector('.p-birth').value,
+        relation: p.querySelector('.p-relation').value.trim()
+      }));
+      return { registeredFamily };
+    }
+
+    function preview(url, headers, body){
+      const redactedAuth = headers.Authorization ? headers.Authorization.replace(/Bearer\s+([A-Za-z0-9-_]+)\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+/, 'Bearer $1.***.***') : '';
+      const h = {...headers, Authorization: redactedAuth };
+      $('#reqPreview').textContent = url;
+      $('#outReq').textContent = JSON.stringify({ headers: h, body }, null, 2);
+    }
+
+    async function doFetch(url, options){
+      $('#status').textContent = '요청 중…';
+      $('#out').textContent = '';
+      try{
+        const resp = await fetch(url, options);
+        const text = await resp.text();
+        let parsed; try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
+        $('#status').innerHTML = `HTTP <strong>${resp.status}</strong> ${resp.ok ? '<span class="ok">OK</span>' : '<span class="err">ERROR</span>'}`;
+        const usefulHeaders = {}; resp.headers.forEach((v,k)=>{ if(['set-cookie','content-type','x-request-id'].includes(k) || k.startsWith('x-')) usefulHeaders[k]=v; });
+        $('#out').textContent = JSON.stringify({ status: resp.status, ok: resp.ok, headers: usefulHeaders, data: parsed }, null, 2);
+      }catch(e){
+        $('#status').innerHTML = '<span class="err">네트워크 에러</span>';
+        $('#out').textContent = String(e);
+      }
+    }
+
+    // Add
+    $('#sendAdd').addEventListener('click', async () => {
+      const base = $('#base').value.trim();
+      const idToken = $('#token').value.trim();
+      if (!base) return alert('API Base를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다.');
+      const url = `${base.replace(/\/$/, '')}/family`;
+      const body = buildAddBody();
+      if (!Array.isArray(body.registeredFamily) || body.registeredFamily.length === 0) return alert('가족 정보를 최소 1명 입력하세요.');
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` };
+      preview(url, headers, body);
+      await doFetch(url, { method: 'POST', mode: 'cors', credentials: 'include', headers, body: JSON.stringify(body) });
+    });
+
+    // Update
+    $('#sendUpdate').addEventListener('click', async () => {
+      const base = $('#base').value.trim();
+      const idToken = $('#token').value.trim();
+      const mid = $('#midUpdate').value.trim();
+      if (!base || !mid) return alert('API Base와 memberId(mid)를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다.');
+      const url = `${base.replace(/\/$/, '')}/family/${encodeURIComponent(mid)}`;
+      const patch = {};
+      if ($('#u_name').value.trim()) patch.name = $('#u_name').value.trim();
+      if ($('#u_phone').value.trim()) patch.phone = $('#u_phone').value.trim();
+      if ($('#u_gender').value) patch.gender = $('#u_gender').value;
+      if ($('#u_birthdate').value) patch.birthdate = $('#u_birthdate').value;
+      if ($('#u_relation').value.trim()) patch.relation = $('#u_relation').value.trim();
+      if (Object.keys(patch).length === 0) return alert('수정할 필드를 하나 이상 입력하세요.');
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` };
+      preview(url, headers, patch);
+      await doFetch(url, { method: 'PUT', mode: 'cors', credentials: 'include', headers, body: JSON.stringify(patch) });
+    });
+
+    // Delete
+    $('#sendDelete').addEventListener('click', async () => {
+      const base = $('#base').value.trim();
+      const idToken = $('#token').value.trim();
+      const mid = $('#midDelete').value.trim();
+      if (!base || !mid) return alert('API Base와 memberId(mid)를 입력하세요.');
+      if (!idToken) return alert('idToken이 없습니다.');
+      const url = `${base.replace(/\/$/, '')}/family/${encodeURIComponent(mid)}`;
+      const headers = { 'Authorization': `Bearer ${idToken}` };
+      preview(url, headers, undefined);
+      await doFetch(url, { method: 'DELETE', mode: 'cors', credentials: 'include', headers });
+    });
+  </script>
+</body>
+</html>

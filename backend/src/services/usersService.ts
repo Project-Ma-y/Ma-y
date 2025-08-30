@@ -182,12 +182,71 @@ export const compareUserPassword = async (userId: string, payload: Partial<Regis
         (err as any).code = 402;
         throw err;
       }
-
+      return true;
     }
-    return true;
+    return false;
 
   } catch (error) {
     console.error('Error updating user in compareUserPassword:', error);
+    throw error;
+  }
+}
+
+export const isSignupUser = async (userId: string) => {
+  try{
+    if (!userId) {
+      throw new Error("userId가 존재하지 않습니다");
+    }
+
+    
+    //uid의 유저가 회원가입했는지 확인
+    const userData = await collectionRef.doc(userId).get();
+
+    if (!userData.exists) {
+      throw new Error("유저 정보를 찾을 수 없습니다.");
+    }
+
+    const data = userData.data();
+    if (data?.hasSignup === undefined) {
+      throw new Error("hasSignup 필드가 존재하지 않습니다");
+    }
+    return data.hasSignup;
+
+  } catch(error){
+    console.error('Error get user is sign up', error);
+    throw error;
+  }
+}
+
+
+
+export const updateUserParentServiceUID = async (userId: string, parentId: string, payload: Partial<RegisterPayload>) => {
+  try {
+    if (!parentId || !userId) {
+      throw new Error("정보가 존재하지 않습니다");
+    }
+    // Firebase Auth 정보 업데이트 (name만 변경될 때만)
+    const updateAuthPayload: any = {};
+    if (payload.name) updateAuthPayload.displayName = payload.name;
+    if (Object.keys(updateAuthPayload).length > 0) {
+      await auth.updateUser(parentId, updateAuthPayload);
+    }
+
+    //유저 정보 users에 업데이트
+    const userRecord = await db.collection("users").doc(userId).update(payload);
+
+    return userRecord;
+  } catch (error) {
+    console.error('Error updating user in updateUserService:', error);
+    throw error;
+  }
+}
+
+export const addFamilyService = async (uid: string) => {
+  try{
+
+  }  catch (error) {
+    console.error('Error adding parent in addFamilyService:', error);
     throw error;
   }
 }

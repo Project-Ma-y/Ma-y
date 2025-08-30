@@ -9,6 +9,7 @@ src/middleware/allowedAdminUids.ts
 **/node_modules/*
 **/.firebaserc
 ma-y-b1fa6-firebase-adminsdk-fbsvc-cc88864839.json
+ma-y-b1fa6-firebase-adminsdk-fbsvc-e87a6ba32e.json
 
 ### Firebase Patch ###
 .runtimeconfig.json

@@ -12,11 +12,15 @@ export interface RegisterPayload {
   name: string; //이름*
   phone: string; //전화번호*
   gender: string; //성별*
-  address: string; //주소
-  birthdate: string; //생년월일 ISO 8601*
+  address?: string; //주소
+  birthdate?: string; //생년월일 ISO 8601*
   registeredFamily?: Array<{
-    uid?: string;                 // 가족 사용자 uid 참조
+    memberId: string;
+    //uid?: string;                 // 가족 사용자 uid 참조
     name?: string;               // 가족 이름*
+    phone?: string;
+    gender?: string;
+    birthdate?: string;
     relation?: string;           // 'daughter' 등*
     linkedAt?: string;           // ISO, 옵션
   }>;
