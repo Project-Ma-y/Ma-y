@@ -11,15 +11,11 @@ import { getAuth } from "firebase/auth";
  *   netlify.toml에서 백엔드로 라우팅하면 됨.
  */
 const BASE_URL =
-  (import.meta.env.PROD ? import.meta.env.VITE_API_URL : "/api") || "/api";
+  import.meta.env.DEV ? "/api" : (import.meta.env.VITE_API_URL as string);
 
 export const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    "X-Requested-With": "XMLHttpRequest",
-  },
+  baseURL: BASE_URL,   // ← 여기를 신뢰
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
   withCredentials: false,
 });
 
