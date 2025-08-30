@@ -42,9 +42,6 @@ const app: Express = express();
 app.set("port", process.env.PORT || 3000); //  서버 포트
 app.set("host", process.env.HOST || "127.0.0.1"); // 서버 아이피
 
-app.use(express.json());
-app.use(bodyParser.json());
-app.use(cookieParser());
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -58,6 +55,11 @@ app.use(
     allowedHeaders: ['Authorization','Content-Type'],
   })
 );
+
+app.use(express.json());
+app.use(bodyParser.json());
+app.use(cookieParser());
+
 app.use("/api/booking", bookingsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/sessions", sessionsRouter);
