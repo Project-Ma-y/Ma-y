@@ -57,7 +57,7 @@ const app: Express = express();
 app.use(cors(corsOptions));
 
 // 2) 프리플라이트 전역 처리
-app.options("*", cors(corsOptions));
+app.options("(.*)", cors(corsOptions));
 
 // 3) (선택) 보강 미들웨어 — 라우터 전에
 app.use((req, res, next) => {
