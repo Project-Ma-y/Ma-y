@@ -1,8 +1,9 @@
 // src/api/auth.ts
 import { api } from "@/lib/api";
 
-export async function checkAdmin() {
-  // ✅ 엔드포인트 정규화 생략 가능: api.baseURL 기준 상대 경로 사용
-  const { data } = await api.get<{ isAdmin: boolean }>("/auth/checkAdmin");
+export type CheckAdminResp = { isAdmin: boolean; role?: string };
+
+export async function checkAdmin(): Promise<CheckAdminResp> {
+  const { data } = await api.get<CheckAdminResp>("/auth/checkAdmin");
   return data;
 }

@@ -13,12 +13,13 @@ export default function AdminRoute({ children }: Props) {
     let mounted = true;
     (async () => {
       try {
-        const res = await checkAdmin();
+        const res = await checkAdmin();          // 쿠키 + Bearer 자동 전송
         if (!res?.isAdmin) {
           nav("/", { replace: true });
           return;
         }
       } catch (e: any) {
+        // 401은 api 인터셉터가 토큰 재시도 후에도 실패 케이스
         if (e?.response?.status === 401) {
           nav(`/login?next=${encodeURIComponent("/admin")}`, { replace: true });
           return;
