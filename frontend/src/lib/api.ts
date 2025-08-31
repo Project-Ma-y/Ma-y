@@ -2,63 +2,76 @@
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 
-// ✅ 기본 설정: 쿠키 항상 포함 + Content-Type
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "https://api.mayservice.co.kr/api",
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
-// ✅ 요청 인터셉터: Firebase idToken/Bearer 자동 부착 (비동기 허용)
-api.interceptors.request.use(async (config) => {
-  // 로컬 토큰(백엔드 토큰) 우선
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers = { ...(config.headers ?? {}), Authorization: `Bearer ${token}` };
-    return config;
-  }
+async function obtainBearer(): Promise<string | null> {
+  // 1) 백엔드 발급 토큰 우선
+  const stored = localStorage.getItem("token");
+  if (stored) return stored;
 
-  // 없으면 Firebase idToken 시도
+  // 2) Firebase idToken (로그인 직후에도 안전하게)
+  const auth = getAuth();
+  const u = auth.currentUser;
+  if (!u) return null;
   try {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (user) {
-      const idToken = await user.getIdToken(/* forceRefresh */ false);
-      config.headers = { ...(config.headers ?? {}), Authorization: `Bearer ${idToken}` };
-    }
+    return await u.getIdToken(false); // 필요시 true로 갱신
   } catch {
-    // 토큰 없음 → 그대로 진행 (백엔드에서 401을 줄 수 있음)
+    return null;
   }
-  return config;
+}
+
+// 동시요청 중복 방지
+let inFlight: Promise<string | null> | null = null;
+async function getBearerOnce() {
+  if (!inFlight) inFlight = obtainBearer().finally(() => (inFlight = null));
+  return inFlight;
+}
+
+// ✅ 모든 요청에 Authorization 자동 부착
+api.interceptors.request.use(async (cfg) => {
+  // 이미 지정됐다면 건드리지 않음
+  const hasAuth = cfg.headers && ("authorization" in (cfg.headers as any) || "Authorization" in (cfg.headers as any));
+  if (!hasAuth) {
+    const bearer = await getBearerOnce();
+    if (bearer) {
+      cfg.headers = { ...(cfg.headers ?? {}), Authorization: `Bearer ${bearer}` };
+    }
+  }
+  return cfg;
 });
 
-// ✅ 응답 인터셉터: /auth/checkAdmin 401 → 토큰 갱신 후 1회 재시도
+// ✅ checkAdmin 401일 때 idToken 강제 갱신 후 1회 재시도
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
-    const cfg = err?.config ?? {};
-    const isCheckAdmin = typeof cfg?.url === "string" && cfg.url.includes("/auth/checkAdmin");
-    const status = err?.response?.status;
+    const cfg: any = err?.config ?? {};
+    if (!cfg || cfg._retry) return Promise.reject(err);
 
-    // 이미 재시도한 요청은 _retry 플래그로 구분
-    if (isCheckAdmin && status === 401 && !cfg._retry) {
+    const status = err?.response?.status;
+    const isCheckAdmin = typeof cfg.url === "string" && cfg.url.includes("/auth/checkAdmin");
+
+    if (status === 401 && isCheckAdmin) {
       cfg._retry = true;
       try {
         const auth = getAuth();
-        const user = auth.currentUser;
-        if (user) {
-          const fresh = await user.getIdToken(true); // 강제 갱신
+        if (auth.currentUser) {
+          const fresh = await auth.currentUser.getIdToken(true);
           cfg.headers = { ...(cfg.headers ?? {}), Authorization: `Bearer ${fresh}` };
-          return api(cfg); // 1회 재시도
+          return api(cfg);
         }
       } catch {
-        // 재시도 불가 → 그대로 실패
+        /* ignore */
       }
     }
     return Promise.reject(err);
   }
 );
 
+// 유틸(선택)
 export const normalizeEndpoint = (ep: string) => {
   let s = (ep || "").trim();
   if (/^https?:\/\//i.test(s)) return s;
