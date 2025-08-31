@@ -1,118 +1,93 @@
 // src/lib/api.ts
 import axios from "axios";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth } from "firebase/auth";
+import { resolveAuthToken } from "@/services/token";
 
-type Maybe<T> = T | null;
+/**
+ * Base URL 우선순위
+ * 1) localStorage.API_BASE_URL (런타임 전환)
+ * 2) VITE_API_URL (배포 환경변수, 예: https://api.mayservice.co.kr/api/)
+ * 3) 기본값
+ */
+const ENV_BASE = (import.meta.env.VITE_API_URL as string) || "https://api.mayservice.co.kr/api/";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.mayservice.co.kr/api";
+const normalizeBase = (u: string) => {
+  let s = (u || "").trim();
+  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  if (!s.endsWith("/")) s += "/";
+  return s;
+};
 
-/** -------------------------
- *  토큰 공급자 (백엔드 토큰 우선, 없으면 Firebase idToken)
- *  - 중복 동시 요청 시 1회만 발급 → 모두 대기(큐)
- *  - 필요 시 강제 갱신(forceRefresh)
- * ------------------------- */
-let cachedBearer: Maybe<string> = null;
-let inflight: Promise<Maybe<string>> | null = null;
+const initialBase = localStorage.getItem("API_BASE_URL") || ENV_BASE;
 
-async function fetchBearer(forceRefresh = false): Promise<Maybe<string>> {
-  // 1) 로컬에 저장한 백엔드 토큰 우선
-  const backend = localStorage.getItem("token");
-  if (backend) return backend;
-
-  // 2) Firebase idToken
-  const auth = getAuth();
-  const u = auth.currentUser;
-  if (!u) return null;
-  try {
-    const idt = await u.getIdToken(forceRefresh);
-    return idt;
-  } catch {
-    return null;
-  }
-}
-
-async function getBearer(forceRefresh = false): Promise<Maybe<string>> {
-  if (!forceRefresh && cachedBearer) return cachedBearer;
-  if (!inflight) {
-    inflight = (async () => {
-      const t = await fetchBearer(forceRefresh);
-      cachedBearer = t;
-      return t;
-    })().finally(() => (inflight = null));
-  }
-  return inflight;
-}
-
-/** Firebase 로그인/로그아웃에 맞춰 캐시 초기화 */
-onAuthStateChanged(getAuth(), async (u) => {
-  cachedBearer = null;
-  if (u) {
-    // 로그인 직후 한 번 미리 받아 캐싱
-    try { cachedBearer = await u.getIdToken(false); } catch {}
-  }
-});
-
-/** -------------------------
- *  Axios 인스턴스
- * ------------------------- */
 export const api = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true, // ✅ 쿠키 항상 포함
-  headers: { "Content-Type": "application/json" },
+  baseURL: normalizeBase(initialBase),
+  withCredentials: true, // 쿠키 항상 포함
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
 });
 
-/** 요청 인터셉터: Authorization 자동 부착 */
-api.interceptors.request.use(async (config) => {
-  // 이미 명시되어 있으면 건너뜀
-  const hasAuth =
-    !!config.headers &&
-    (("authorization" in config.headers) || ("Authorization" in config.headers as any));
+// 🔐 Firebase ID 토큰 자동 부착
 
-  if (!hasAuth) {
-    const bearer = await getBearer(false);
-    if (bearer) {
-      config.headers = { ...(config.headers ?? {}), Authorization: `Bearer ${bearer}` };
-    }
+// ✅ 모든 요청에 로컬 토큰 자동 첨부
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token"); // 로그인 시 저장된 토큰
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
-
-  // 디버깅(원할 때만)
-  // console.debug("[REQ]", config.method, config.url, { hasAuth: !!bearer });
-
   return config;
 });
 
-/** 응답 인터셉터: 401이면 토큰 강제갱신 후 1회 재시도 */
+// 에러 가독성 + 401 1회 재시도
 api.interceptors.response.use(
-  (r) => r,
+  (res) => res,
   async (err) => {
-    const cfg: any = err?.config ?? {};
-    const status = err?.response?.status;
+    if (err?.code === "ERR_NETWORK") {
+      err.message = "네트워크 오류입니다. DNS 또는 서버 접속 문제일 수 있어요.";
+    }
 
-    if (status === 401 && !cfg._retry) {
-      cfg._retry = true;
-      // 강제 갱신 토큰으로 재시도
-      const fresh = await getBearer(true);
-      if (fresh) {
-        cfg.headers = { ...(cfg.headers ?? {}), Authorization: `Bearer ${fresh}` };
-        return api(cfg);
+    const original: any = err.config || {};
+    if (err.response?.status === 401 && !original._retry) {
+      original._retry = true;
+      const u = getAuth().currentUser;
+      if (u) {
+        await u.getIdToken(true);
+        const fresh = await u.getIdToken();
+        original.headers = original.headers ?? {};
+        original.headers.Authorization = `Bearer ${fresh}`;
+        original.withCredentials = true;
+        return api.request(original);
       }
     }
     return Promise.reject(err);
   }
 );
 
-/** 엔드포인트 경로 정규화(선택) */
-export const normalizeEndpoint = (ep: string) => {
-  let s = (ep || "").trim();
-  if (/^https?:\/\//i.test(s)) return s;
-  s = s.replace(/^\/?api\/?/i, "");
-  if (!s.startsWith("/")) s = `/${s}`;
-  return s.replace(/\/{2,}/g, "/");
-};
+// ===== 런타임 전환 유틸 =====
+export function getApiBaseURL() {
+  return api.defaults.baseURL!;
+}
 
-/** 백엔드 토큰 저장 헬퍼(로그인 성공 시 호출) */
-export function setBackendToken(token: string | null) {
-  if (token) localStorage.setItem("token", token);
-  else localStorage.removeItem("token");
-  cachedBearer = token;
+export function setApiBaseURL(url: string) {
+  const next = normalizeBase(url);
+  api.defaults.baseURL = next;
+  localStorage.setItem("API_BASE_URL", next);
+}
+
+export function useFallbackBaseURL(index = 0) {
+  const fb = FALLBACKS[index];
+  if (fb) setApiBaseURL(fb);
+  return getApiBaseURL();
+}
+
+/** /api 중복 방지 + 선행 슬래시 보장 (필요한 곳에서 사용) */
+export function normalizeEndpoint(ep: string) {
+  let s = ep.trim();
+  if (/^https?:\/\//i.test(s)) return s; // 풀 URL은 그대로
+  s = s.replace(/^\/?api\/?/i, "");       // 앞 /api 제거
+  if (!s.startsWith("/")) s = `/${s}`;
+  return s;
 }
