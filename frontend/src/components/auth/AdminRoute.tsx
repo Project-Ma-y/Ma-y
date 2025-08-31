@@ -1,42 +1,56 @@
-// src/components/auth/AdminRoute.tsx
+// src/router/AdminRoute.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { checkAdmin } from "@/api/auth";
-import { useAuthStore } from "@/store/authStore";
-import { AdminPage } from "@/router";
 
-export function AdminRoute() {
+type Props = { children: React.ReactNode };
+
+/**
+ * ✅ Admin 라우트 가드
+ * - 첫 진입 시 /auth/checkAdmin 호출
+ * - 401이면 로그인 플로우(예: /login?next=/admin)로 보냄
+ * - isAdmin=false면 메인으로 이동
+ * - 토큰 도착 타이밍 문제를 인터셉터 재시도로 흡수
+ */
+export default function AdminRoute({ children }: Props) {
   const nav = useNavigate();
-  const { setAuth } = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       try {
-        const res = await checkAdmin(); // ✅ 토큰은 인터셉터가 알아서 붙임
-        if (res.isAdmin) {
-          setAuth({ isLoggedIn: true, isAdmin: true });
-          setIsAdmin(true);
-        } else {
-          setError("관리자 권한이 없습니다.");
-          nav("/");
+        const res = await checkAdmin(); // 인터셉터가 토큰/재시도 처리
+        if (!res?.isAdmin) {
+          nav("/", { replace: true });
+          return;
         }
       } catch (e: any) {
-        if (e?.response?.status === 401) {
-          setError("로그인이 필요합니다.");
-          nav("/login");
-        } else {
-          setError("서버 오류가 발생했습니다.");
+        const status = e?.response?.status;
+        // 401 → 로그인 페이지로
+        if (status === 401) {
+          const next = encodeURIComponent("/admin");
+          nav(`/login?next=${next}`, { replace: true });
+          return;
         }
+        // 기타 오류 → 메인
+        nav("/", { replace: true });
+        return;
       } finally {
-        setLoading(false);
+        if (mounted) setReady(true);
       }
     })();
-  }, [setAuth, nav]);
+    return () => {
+      mounted = false;
+    };
+  }, [nav]);
 
-  if (loading) return <div>관리자 인증 중...</div>;
-  if (isAdmin) return <AdminPage />;
-  return <div>{error}</div>;
+  if (!ready) {
+    return (
+      <div className="w-full h-dvh flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">관리자 확인 중…</div>
+      </div>
+    );
+  }
+  return <>{children}</>;
 }
