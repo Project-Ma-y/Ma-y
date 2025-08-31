@@ -60,21 +60,25 @@ export const router = createBrowserRouter([
 
   // ✅ Admin 보호 라우트(기존 유지)
   {
-    path: "/admin",
-    element: (
+  path: "/admin",
+  element: (
+    <AdminRoute>
       <Suspense fallback={<Loader fullScreen />}>
-        <AdminRoute />
+        <AdminPage />
       </Suspense>
-    ),
-  },
-  {
-    path: "/admin/users",
-    element: (
+    </AdminRoute>
+  ),
+},
+{
+  path: "/admin/users",
+  element: (
+    <AdminRoute>
       <Suspense fallback={<Loader fullScreen />}>
         <AdminUsersPage />
       </Suspense>
-    ),
-  },
+    </AdminRoute>
+  ),
+},
 
   // ✅ 로그인 필요 라우트들
   {
