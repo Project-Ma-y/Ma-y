@@ -280,9 +280,16 @@ export default function MyReservations() {
           <Button
             type="primary"
             buttonName="동행 예약 바로가기"
-            onClick={() => {
-              logInfo("동행 예약 바로가기 클릭 → /reservation");
-              navigate("/reservation");
+            onClick={async () => {
+              try {
+                logInfo("동행 예약 바로가기 클릭 → 세션 로깅 시도");
+                await api.get("/sessions/booking"); // ✅ 예약 버튼 클릭 로깅
+              } catch (err) {
+                console.error("[MyReservations] 예약 버튼 통계 로깅 실패:", err);
+              } finally {
+                logInfo("동행 예약 바로가기 이동 → /reservation");
+                navigate("/reservation");
+              }
             }}
             className="w-full"
           />
