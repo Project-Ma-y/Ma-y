@@ -1,6 +1,7 @@
 // src/lib/api.ts
 import axios from "axios";
 import { getAuth } from "firebase/auth";
+import { resolveAuthToken } from "@/services/token";
 
 /**
  * Base URL 우선순위
@@ -30,15 +31,10 @@ export const api = axios.create({
 
 // 🔐 Firebase ID 토큰 자동 부착
 api.interceptors.request.use(async (config) => {
-  try {
-    const user = getAuth().currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      config.headers = config.headers ?? {};
-      (config.headers as any).Authorization = `Bearer ${token}`;
-    }
-  } catch {
-    // 토큰 못 붙여도 그대로 진행
+  const token = await resolveAuthToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
   return config;
 });
