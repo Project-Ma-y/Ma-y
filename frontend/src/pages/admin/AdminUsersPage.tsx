@@ -38,20 +38,29 @@ export default function AdminUsersPage() {
     }
   };
 
-  const removeUser = async (id: string) => {
-    if (!confirm("정말 이 회원을 삭제하시겠어요?")) return;
-    try {
-      const ep = normalizeEndpoint(`/users/${id}`);
-      const token = localStorage.getItem("token");
-      await api.delete(ep, {
-        withCredentials: true,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      setRows((prev) => prev.filter((r) => r.id !== id));
-    } catch (e: any) {
-      alert(e?.response?.data?.message ?? e?.message ?? "삭제 실패");
+  const removeUser = async (uid: string) => {
+  if (!confirm("정말 이 회원을 삭제하시겠어요?")) return;
+
+  try {
+    const ep = normalizeEndpoint("/users");
+    const res = await api.delete(ep, {
+      // 헤더 + 쿠키 포함은 인스턴스 기본값으로 충족됨(위 interceptors 참고)
+      params: { uid }, // ← 스펙: params에 uid 필요
+    });
+
+    // 200 { message: "회원 삭제 성공" }
+    if (res.status === 200) {
+      setRows((prev) => prev.filter((r) => r.id !== uid));
+      return;
     }
-  };
+
+    alert(res?.data?.message ?? "삭제 실패");
+  } catch (e: any) {
+    // 400/500 { message: "유저 삭제 실패" }
+    const msg = e?.response?.data?.message ?? e?.message ?? "삭제 실패";
+    alert(msg);
+  }
+};
 
   useEffect(() => {
     fetchUsers();
