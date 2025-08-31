@@ -1,90 +1,72 @@
 // src/components/auth/AdminRoute.tsx
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminPage } from "@/router";
+import { api } from "@/lib/api"; // ✅ axios 인스턴스
 import { useAuthStore } from "@/store/authStore";
-
-const ADMIN_PASS = "mayAdmin123";
-const SESSION_KEY = "admin_gate_ok"; // 세션 유지용
 
 export function AdminRoute() {
   const { setAuth } = useAuthStore();
-  const [unlocked, setUnlocked] = useState(false);
-  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nav = useNavigate();
 
   useEffect(() => {
-    const ok = sessionStorage.getItem(SESSION_KEY) === "1";
-    if (ok) {
-      setUnlocked(true);
-      setAuth({ isLoggedIn: true, isAdmin: true });
-    }
-  }, [setAuth]);
+    const checkAdmin = async () => {
+      try {
+        const token = localStorage.getItem("token"); // ✅ 로그인 후 저장해둔 토큰
+        if (!token) {
+          setError("로그인이 필요합니다.");
+          nav("/login");
+          return;
+        }
 
-  const submit = () => {
-    if (password === ADMIN_PASS) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      setAuth({ isLoggedIn: true, isAdmin: true }); // 로컬 상태만 갱신
-      setUnlocked(true);
-    } else {
-      setError("비밀번호가 올바르지 않습니다.");
-    }
-  };
+        const res = await api.get("/auth/checkAdmin", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          withCredentials: true, // ✅ 쿠키 항상 포함
+        });
 
-  if (unlocked) {
-    return <AdminPage />;
+        if (res.data?.isAdmin) {
+          setAuth({ isLoggedIn: true, isAdmin: true });
+          setIsAdmin(true);
+        } else {
+          setError("관리자 권한이 없습니다.");
+          nav("/");
+        }
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          setError("인증되지 않은 사용자입니다.");
+          nav("/login");
+        } else {
+          setError("서버 오류가 발생했습니다.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdmin();
+  }, [nav, setAuth]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-dvh">
+        <p className="text-gray-500">관리자 인증 중...</p>
+      </div>
+    );
   }
 
-  return (
-    <div className="min-h-dvh flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow">
-        <h1 className="text-xl font-bold text-gray-900">Admin Page</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          관리자 비밀번호를 입력하세요.
-        </p>
-
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            autoFocus
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (error) setError(null);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="••••••••••"
-            className="w-full rounded-xl border px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {error && (
-            <p className="mt-2 text-sm text-red-600">{error}</p>
-          )}
-        </div>
-
-        <div className="mt-5 flex gap-2">
-          <button
-            onClick={submit}
-            className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 transition"
-          >
-            로그인
-          </button>
-          <button
-            onClick={() => {
-              setPassword("");
-              setError(null);
-            }}
-            className="rounded-xl border px-4 py-2 text-gray-700 hover:bg-gray-50"
-          >
-            초기화
-          </button>
-        </div>
-
-        <div className="mt-4 text-xs text-gray-400">
-          * 브라우저 세션 동안만 유지됩니다.
-        </div>
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-dvh">
+        <p className="text-red-500">{error}</p>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return isAdmin ? <AdminPage /> : null;
 }
