@@ -78,7 +78,7 @@ export const testAuth = async (req: Request, res: Response) => {
 //관리자 확인
 export const adminCheck = async (req: Request, res: Response) => {
   try {
-    const uid = (req as any).user?.uid; // verifyFirebaseToken에서 채워넣음
+    const uid = req.user?.uid; // verifyFirebaseToken에서 채워넣음
 
     if (!uid) {
       res.status(401).json({ error: "인증되지 않은 사용자입니다." });
