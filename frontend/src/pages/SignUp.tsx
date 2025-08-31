@@ -43,7 +43,6 @@ export default function SignUp() {
     if (!form.gender) return "성별을 선택하세요.";
     if (!form.id.trim()) return "아이디를 입력하세요.";
     if (!form.phone.trim()) return "전화번호를 입력하세요.";
-    if (!form.address.trim()) return "주소를 입력하세요.";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthdate)) return "생년월일은 YYYY-MM-DD 형식입니다.";
     const pwRule = /^(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,20}$/;
     if (!pwRule.test(form.password)) return "비밀번호는 소문자/숫자/특수문자 포함 8~20자입니다.";
@@ -65,7 +64,7 @@ export default function SignUp() {
         name: form.name,
         phone: form.phone,
         gender: form.gender,
-        address: form.address,
+         address: form.address.trim() || "", 
         birthdate: form.birthdate,
       };
       await register(payload);
