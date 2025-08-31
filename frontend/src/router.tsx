@@ -3,7 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import Loader from "@/components/Loader";
 import NotFound from "@/pages/NotFound";
-import { AdminRoute } from "@/components/auth/AdminRoute";
+import AdminRoute from "@/components/auth/AdminRoute";
 import ProtectedRoute from "@/components/auth/ProtectedRoute"; // ✅ 추가
 import ReservationProcess from "@/pages/ReservationProcess";
 
