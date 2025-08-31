@@ -75,7 +75,6 @@ app.set("port", process.env.PORT || 3000); //  서버 포트
 app.set("host", process.env.HOST || "127.0.0.1"); // 서버 아이피
 
 app.use(express.json());
-app.use(bodyParser.json());
 app.use(cookieParser());
 
 app.use("/api/booking", bookingsRouter);
@@ -83,6 +82,14 @@ app.use("/api/auth", authRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/stats", statsRouter);
+
+//테스트용 정적파일
+const testPath = path.join(__dirname, '../../test');
+app.use('/test', express.static(testPath));
+
+app.get("/", (req: Request, res: Response) => {
+  res.send("Typescript + Node.js + Express Server");
+});
 
 
 
@@ -97,28 +104,23 @@ app.use((req, res) => {
   res.status(404).json({ message: "Not Found" });
 });
 
-// 7) 에러 핸들러 (CORS 유지)
-// app.use((err: any, req: Request, res: Response, _next: any) => {
-//   const origin = req.headers.origin as string | undefined;
-//   if (origin && allowedOrigins.has(origin)) {
-//     res.setHeader("Access-Control-Allow-Origin", origin);
-//     res.setHeader("Access-Control-Allow-Credentials", "true");
-//     res.setHeader("Vary", "Origin");
-//   }
-//   const code = typeof err.code === "number" ? err.code : 500;
-//   res.status(code).json({ message: err.message || "Server error" });
-// });
-
-//테스트용 정적파일
-const testPath = path.join(__dirname, '../../test');
-app.use('/test', express.static(testPath));
-
-app.get("/", (req: Request, res: Response) => {
-  res.send("Typescript + Node.js + Express Server");
+//7) 에러 핸들러 (CORS 유지)
+app.use((err: any, req: Request, res: Response, _next: any) => {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Vary", "Origin");
+  }
+  const code = typeof err.code === "number" ? err.code : 500;
+  res.status(code).json({ message: err.message || "Server error" });
 });
+
 
 app.listen(app.get("port"), app.get("host"), () =>
   console.log(
     "Server is running on : " + app.get("host") + ":" + app.get("port")
   )
 );
+
+
