@@ -1,93 +1,81 @@
 // src/lib/api.ts
 import axios from "axios";
 import { getAuth } from "firebase/auth";
-import { resolveAuthToken } from "@/services/token";
-
-/**
- * Base URL 우선순위
- * 1) localStorage.API_BASE_URL (런타임 전환)
- * 2) VITE_API_URL (배포 환경변수, 예: https://api.mayservice.co.kr/api/)
- * 3) 기본값
- */
-const ENV_BASE = (import.meta.env.VITE_API_URL as string) || "https://api.mayservice.co.kr/api/";
-
-const normalizeBase = (u: string) => {
-  let s = (u || "").trim();
-  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
-  if (!s.endsWith("/")) s += "/";
-  return s;
-};
-
-const initialBase = localStorage.getItem("API_BASE_URL") || ENV_BASE;
 
 export const api = axios.create({
-  baseURL: normalizeBase(initialBase),
-  withCredentials: true, // 쿠키 항상 포함
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "https://api.mayservice.co.kr/api",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
 });
 
-// 🔐 Firebase ID 토큰 자동 부착
+async function obtainBearer(): Promise<string | null> {
+  // 1) 백엔드 발급 토큰 우선
+  const stored = localStorage.getItem("token");
+  if (stored) return stored;
 
-// ✅ 모든 요청에 로컬 토큰 자동 첨부
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token"); // 로그인 시 저장된 토큰
-  if (token) {
-    config.headers = config.headers ?? {};
-    (config.headers as any).Authorization = `Bearer ${token}`;
+  // 2) Firebase idToken (로그인 직후에도 안전하게)
+  const auth = getAuth();
+  const u = auth.currentUser;
+  if (!u) return null;
+  try {
+    return await u.getIdToken(false); // 필요시 true로 갱신
+  } catch {
+    return null;
   }
-  return config;
+}
+
+// 동시요청 중복 방지
+let inFlight: Promise<string | null> | null = null;
+async function getBearerOnce() {
+  if (!inFlight) inFlight = obtainBearer().finally(() => (inFlight = null));
+  return inFlight;
+}
+
+// ✅ 모든 요청에 Authorization 자동 부착
+api.interceptors.request.use(async (cfg) => {
+  // 이미 지정됐다면 건드리지 않음
+  const hasAuth = cfg.headers && ("authorization" in (cfg.headers as any) || "Authorization" in (cfg.headers as any));
+  if (!hasAuth) {
+    const bearer = await getBearerOnce();
+    if (bearer) {
+      cfg.headers = { ...(cfg.headers ?? {}), Authorization: `Bearer ${bearer}` };
+    }
+  }
+  return cfg;
 });
 
-// 에러 가독성 + 401 1회 재시도
+// ✅ checkAdmin 401일 때 idToken 강제 갱신 후 1회 재시도
 api.interceptors.response.use(
-  (res) => res,
+  (r) => r,
   async (err) => {
-    if (err?.code === "ERR_NETWORK") {
-      err.message = "네트워크 오류입니다. DNS 또는 서버 접속 문제일 수 있어요.";
-    }
+    const cfg: any = err?.config ?? {};
+    if (!cfg || cfg._retry) return Promise.reject(err);
 
-    const original: any = err.config || {};
-    if (err.response?.status === 401 && !original._retry) {
-      original._retry = true;
-      const u = getAuth().currentUser;
-      if (u) {
-        await u.getIdToken(true);
-        const fresh = await u.getIdToken();
-        original.headers = original.headers ?? {};
-        original.headers.Authorization = `Bearer ${fresh}`;
-        original.withCredentials = true;
-        return api.request(original);
+    const status = err?.response?.status;
+    const isCheckAdmin = typeof cfg.url === "string" && cfg.url.includes("/auth/checkAdmin");
+
+    if (status === 401 && isCheckAdmin) {
+      cfg._retry = true;
+      try {
+        const auth = getAuth();
+        if (auth.currentUser) {
+          const fresh = await auth.currentUser.getIdToken(true);
+          cfg.headers = { ...(cfg.headers ?? {}), Authorization: `Bearer ${fresh}` };
+          return api(cfg);
+        }
+      } catch {
+        /* ignore */
       }
     }
     return Promise.reject(err);
   }
 );
 
-// ===== 런타임 전환 유틸 =====
-export function getApiBaseURL() {
-  return api.defaults.baseURL!;
-}
-
-export function setApiBaseURL(url: string) {
-  const next = normalizeBase(url);
-  api.defaults.baseURL = next;
-  localStorage.setItem("API_BASE_URL", next);
-}
-
-export function useFallbackBaseURL(index = 0) {
-  const fb = FALLBACKS[index];
-  if (fb) setApiBaseURL(fb);
-  return getApiBaseURL();
-}
-
-/** /api 중복 방지 + 선행 슬래시 보장 (필요한 곳에서 사용) */
-export function normalizeEndpoint(ep: string) {
-  let s = ep.trim();
-  if (/^https?:\/\//i.test(s)) return s; // 풀 URL은 그대로
-  s = s.replace(/^\/?api\/?/i, "");       // 앞 /api 제거
+// 유틸(선택)
+export const normalizeEndpoint = (ep: string) => {
+  let s = (ep || "").trim();
+  if (/^https?:\/\//i.test(s)) return s;
+  s = s.replace(/^\/?api\/?/i, "");
   if (!s.startsWith("/")) s = `/${s}`;
-  return s;
-}
+  return s.replace(/\/{2,}/g, "/");
+};
