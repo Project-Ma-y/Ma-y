@@ -15,12 +15,17 @@ export async function initSession(userId: string = "") {
     const sessionId = uuidv4();
     const now = new Date().toISOString();
 
+    //만약 userId가 존재한다면 userId 넣어서 처리
+    let isRegistered: boolean;
+    if(!userId) isRegistered = false;
+    else isRegistered = true;
+
     const sessionData: SessionPayload = {
       createdAt: now,
-      isRegistered: false,
+      isRegistered,
       visitApplyPageCount: 0,
       applyCount: 0,
-      userId: userId
+      userId
     };
 
     await collectionRef.doc(sessionId).set(sessionData);
