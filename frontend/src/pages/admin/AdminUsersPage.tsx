@@ -1,7 +1,8 @@
-// ✅ /src/pages/admin/AdminUsersPage.tsx — 404 대응: 엔드포인트 폴백 + uid param 보장 + 로깅
+// src/pages/admin/AdminUsersPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import { api, normalizeEndpoint, buildUrl } from "@/lib/api";
+import { api } from "@/lib/api";
 import Card from "@/components/Card";
+import { normalizeEndpoint } from "@/lib/axios";
 
 type UserRow = {
   id: string;
@@ -18,72 +19,48 @@ export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const [log, setLog] = useState("");
 
-  // ✅ 공통: 응답 id 키 보정
-  const mapUsers = (list: any[]): UserRow[] =>
-    (list ?? [])
-      .map((u) => ({
-        id: u?.uid ?? u?.id ?? u?._id ?? "",
-        email: u?.email,
-        name: u?.name,
-        phone: u?.phone,
-        createdAt: u?.createdAt,
-        isDeleted: u?.isDeleted,
-      }))
-      .filter((u) => !!u.id);
-
-  // ✅ 404 대비: 목록 엔드포인트 폴백(/users → /admin/users)
   const fetchUsers = async () => {
     setLoading(true);
     setLog("불러오는 중…");
-    const candidates = ["/users", "/admin/users"];
-    for (let i = 0; i < candidates.length; i++) {
-      const ep = candidates[i];
-      try {
-        console.log("[GET]", buildUrl(ep));
-        const res = await api.get(normalizeEndpoint(ep));
-        const data = mapUsers(res.data ?? []);
-        setRows(data);
-        setLog(`총 ${data.length}명`);
-        return;
-      } catch (e: any) {
-        if (e?.response?.status === 404 && i < candidates.length - 1) {
-          // 다음 후보로 폴백
-          continue;
-        }
-        setLog(e?.response?.data?.message ?? e?.message ?? "불러오기 실패");
-        break;
-      } finally {
-        setLoading(false);
-      }
+    try {
+      const ep = normalizeEndpoint("/users/");
+      const token = localStorage.getItem("token");
+      const res = await api.get<UserRow[]>(ep, {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      setRows(res.data ?? []);
+      setLog(`총 ${res.data?.length ?? 0}명`);
+    } catch (e: any) {
+      setLog(e?.response?.data?.message ?? e?.message ?? "불러오기 실패");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // ✅ 삭제: 스펙 준수 — 쿠키 항상 포함, Authorization 자동, params에 uid 필요
-  // 404 대비: /users → /admin/users 폴백, uid 인코딩
   const removeUser = async (uid: string) => {
-    if (!confirm("정말 이 회원을 삭제하시겠어요?")) return;
+  if (!confirm("정말 이 회원을 삭제하시겠어요?")) return;
 
-    const candidates = ["/users", "/admin/users"];
-    for (let i = 0; i < candidates.length; i++) {
-      const ep = candidates[i];
-      try {
-        const params = { uid: encodeURIComponent(uid) };
-        console.log("[DELETE]", buildUrl(ep, params));
-        const res = await api.delete(normalizeEndpoint(ep), { params });
-        if (res.status === 200) {
-          setRows((prev) => prev.filter((r) => r.id !== uid));
-          return;
-        }
-      } catch (e: any) {
-        // 404면 다음 후보로 폴백
-        if (e?.response?.status === 404 && i < candidates.length - 1) continue;
-        // 서버 규격: 400/500 { message: "유저 삭제 실패" }
-        alert(e?.response?.data?.message ?? e?.message ?? "유저 삭제 실패");
-        return;
-      }
+  try {
+    const ep = normalizeEndpoint("/users");
+    const res = await api.delete(ep, {
+      // 헤더 + 쿠키 포함은 인스턴스 기본값으로 충족됨(위 interceptors 참고)
+      params: { uid }, // ← 스펙: params에 uid 필요
+    });
+
+    // 200 { message: "회원 삭제 성공" }
+    if (res.status === 200) {
+      setRows((prev) => prev.filter((r) => r.id !== uid));
+      return;
     }
-  };
+
+    alert(res?.data?.message ?? "삭제 실패");
+  } catch (e: any) {
+    // 400/500 { message: "유저 삭제 실패" }
+    const msg = e?.response?.data?.message ?? e?.message ?? "삭제 실패";
+    alert(msg);
+  }
+};
 
   useEffect(() => {
     fetchUsers();
@@ -93,7 +70,9 @@ export default function AdminUsersPage() {
     const qq = q.trim().toLowerCase();
     if (!qq) return rows;
     return rows.filter((r) =>
-      [r.id, r.email, r.name, r.phone].filter(Boolean).some((v) => String(v).toLowerCase().includes(qq))
+      [r.id, r.email, r.name, r.phone]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(qq))
     );
   }, [rows, q]);
 
@@ -105,7 +84,10 @@ export default function AdminUsersPage() {
           <a href="/admin" className="block py-2 px-4 rounded hover:bg-gray-50">
             대시보드
           </a>
-          <a href="/admin/users" className="block py-2 px-4 rounded bg-blue-50 text-blue-600 font-semibold">
+          <a
+            href="/admin/users"
+            className="block py-2 px-4 rounded bg-blue-50 text-blue-600 font-semibold"
+          >
             회원관리
           </a>
         </nav>
@@ -159,7 +141,9 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3">{u.email ?? "-"}</td>
                       <td className="px-4 py-3">{u.name ?? "-"}</td>
                       <td className="px-4 py-3">{u.phone ?? "-"}</td>
-                      <td className="px-4 py-3">{u.createdAt ? new Date(u.createdAt).toLocaleString() : "-"}</td>
+                      <td className="px-4 py-3">
+                        {u.createdAt ? new Date(u.createdAt).toLocaleString() : "-"}
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => removeUser(u.id)}
