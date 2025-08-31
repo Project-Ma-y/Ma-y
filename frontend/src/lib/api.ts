@@ -30,8 +30,8 @@ export const api = axios.create({
 });
 
 // 🔐 Firebase ID 토큰 자동 부착
-api.interceptors.request.use(async (config) => {
-  const token = await resolveAuthToken();
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
