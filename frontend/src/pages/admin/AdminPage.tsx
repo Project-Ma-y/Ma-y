@@ -51,12 +51,18 @@ export default function AdminPage() {
       {/* 사이드바 */}
       <aside className="w-64 bg-white p-6 border-r border-gray-200">
         <h1 className="text-2xl font-bold text-blue-600">Ma-y Admin</h1>
-        <nav className="mt-8">
+        <nav className="mt-8 space-y-1">
           <a
             href="/admin"
             className="block py-2 px-4 rounded bg-blue-50 text-blue-600 font-semibold"
           >
             대시보드
+          </a>
+          <a
+            href="/admin/users"
+            className="block py-2 px-4 rounded hover:bg-gray-50"
+          >
+            회원관리
           </a>
         </nav>
       </aside>

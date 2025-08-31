@@ -57,62 +57,80 @@ export default function StatChartCard({ title, endpoint }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const ep = normalizeEndpoint(endpoint);
-      const res = await api.get(ep); // withCredentials + 토큰 자동
+  setLoading(true);
+  setError(null);
+  try {
+    // ✅ endpoint는 반드시 "/stats/..." 형태여야 함
+    const ep = normalizeEndpoint(endpoint);
 
-      if (typeof res.data === "number") {
-        const value = Math.round(res.data * 100);
-        setData([{ date: title.split(" ")[0] ?? "value", daily: value, cumulative: value }]);
-        return;
-      }
+    // ✅ 토큰 보강
+    const token = localStorage.getItem("token");
 
-      if (Array.isArray(res.data)) {
-        const rows: RawRow[] = res.data;
-        if (!rows.length) {
-          setData([]);
-          return;
-        }
+    const res = await api.get(ep, {
+      withCredentials: true,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
 
-        const keys = pickKeys(rows[0]);
-        if (!keys) {
-          setError("데이터 키가 올바르지 않습니다.");
-          setData([]);
-          return;
-        }
-
-        const chartRows: ChartRow[] = rows.map((r) => {
-          const dailyNum = (r as any)[keys.dailyKey] ?? 0;
-          const dailyDen = r.sessions ?? 0;
-          const cumNum = (r as any)[keys.totalKey] ?? 0;
-          const cumDen = r.totalSessions ?? 0;
-
-          const dailyPct = dailyDen > 0 ? Math.round((dailyNum / dailyDen) * 100) : 0;
-          const cumulativePct = cumDen > 0 ? Math.round((cumNum / cumDen) * 100) : 0;
-
-          return { date: mmdd(r.date), daily: dailyPct, cumulative: cumulativePct };
-        });
-
-        setData(chartRows);
-        return;
-      }
-
-      setError("데이터 형식이 올바르지 않습니다.");
-      setData([]);
-    } catch (e: any) {
-      console.error(e);
-      const msg =
-        e?.response?.status === 404
-          ? "엔드포인트가 존재하지 않습니다 (404). endpoint 값을 확인하세요."
-          : e?.message || "데이터를 불러오는데 실패했습니다.";
-      setError(msg);
-      setData([]);
-    } finally {
-      setLoading(false);
+    if (typeof res.data === "number") {
+      const value = Math.round(res.data * 100);
+      setData([
+        { date: title.split(" ")[0] ?? "value", daily: value, cumulative: value },
+      ]);
+      return;
     }
-  };
+
+    if (Array.isArray(res.data)) {
+      const rows: RawRow[] = res.data;
+      if (!rows.length) {
+        setData([]);
+        return;
+      }
+
+      const keys = pickKeys(rows[0]);
+      if (!keys) {
+        setError("데이터 키가 올바르지 않습니다.");
+        setData([]);
+        return;
+      }
+
+      const chartRows: ChartRow[] = rows.map((r) => {
+        const dailyNum = (r as any)[keys.dailyKey] ?? 0;
+        const dailyDen = r.sessions ?? 0;
+        const cumNum = (r as any)[keys.totalKey] ?? 0;
+        const cumDen = r.totalSessions ?? 0;
+
+        const dailyPct =
+          dailyDen > 0 ? Math.round((dailyNum / dailyDen) * 100) : 0;
+        const cumulativePct =
+          cumDen > 0 ? Math.round((cumNum / cumDen) * 100) : 0;
+
+        return {
+          date: mmdd(r.date),
+          daily: dailyPct,
+          cumulative: cumulativePct,
+        };
+      });
+
+      setData(chartRows);
+      return;
+    }
+
+    setError("데이터 형식이 올바르지 않습니다.");
+    setData([]);
+  } catch (e: any) {
+    console.error(e);
+    const msg =
+      e?.response?.status === 401
+        ? "인증 오류(401): 토큰 또는 관리자 권한을 확인하세요."
+        : e?.response?.status === 404
+        ? "엔드포인트가 존재하지 않습니다 (404). endpoint 값을 확인하세요."
+        : e?.message || "데이터를 불러오는데 실패했습니다.";
+    setError(msg);
+    setData([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchData();

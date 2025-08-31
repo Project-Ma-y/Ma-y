@@ -19,6 +19,7 @@ const MyPageEdit = lazy(() => import("@/pages/MyPageEdit"));
 const ParentsManage = lazy(() => import("@/pages/ParentsManage"));
 export const AdminPage = lazy(() => import("@/pages/admin/AdminPage"));
 const ManagerProfile = lazy(() => import("@/pages/ManagerProfile"));
+const AdminUsersPage = lazy(() => import("@/pages/admin/AdminUsersPage"));
 
 export const router = createBrowserRouter([
   // ✅ 첫 화면: 홈
@@ -60,6 +61,14 @@ export const router = createBrowserRouter([
   // ✅ Admin 보호 라우트(기존 유지)
   {
     path: "/admin",
+    element: (
+      <Suspense fallback={<Loader fullScreen />}>
+        <AdminRoute />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/admin/users",
     element: (
       <Suspense fallback={<Loader fullScreen />}>
         <AdminRoute />
