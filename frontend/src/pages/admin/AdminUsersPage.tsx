@@ -128,9 +128,7 @@ export default function AdminUsersPage() {
                   )}
                   {filtered.map((u) => (
                     <tr key={u.id} className="border-t">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-600">
-                        {u.id}
-                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{u.id}</td>
                       <td className="px-4 py-3">{u.email ?? "-"}</td>
                       <td className="px-4 py-3">{u.name ?? "-"}</td>
                       <td className="px-4 py-3">{u.phone ?? "-"}</td>
