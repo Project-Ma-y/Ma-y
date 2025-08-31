@@ -68,7 +68,12 @@ export const getUserByUID = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const id = req.params.uid;
+      const id = (req.query.uid as string) || (req.params as any).uid; // 둘 다 지원
+      if (!id) {
+      const err: any = new Error("uid가 없습니다.");
+      err.code = 400;
+      throw err;
+    }
     //id로 uid 불러오기
     const user = await getUserByIdService(id);
     await deleteUserService(user.uid);
