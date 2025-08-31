@@ -71,7 +71,7 @@ export const router = createBrowserRouter([
     path: "/admin/users",
     element: (
       <Suspense fallback={<Loader fullScreen />}>
-        <AdminRoute />
+        <AdminUsersPage />
       </Suspense>
     ),
   },
