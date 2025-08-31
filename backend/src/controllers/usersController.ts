@@ -68,8 +68,10 @@ export const getUserByUID = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    await deleteUserService(id);
+    const id = req.params.uid;
+    //id로 uid 불러오기
+    const user = await getUserByIdService(id);
+    await deleteUserService(user.uid);
     res.status(200).json({ message: "회원 삭제 성공" });
   } catch (error: any) {
     const statusCode = typeof error.code === 'number' ? error.code : 500;
