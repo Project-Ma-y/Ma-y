@@ -29,9 +29,10 @@ export const api = axios.create({
   },
 });
 
-// 🔐 Firebase ID 토큰 자동 부착
+
+// ✅ 모든 요청에 로컬 토큰 자동 첨부
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token"); // 로그인 시 저장된 토큰
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
