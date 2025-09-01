@@ -45,72 +45,69 @@ async function geocodeOnce(opts: any): Promise<any[]> {
    - 반환 mapx/mapy: WGS84 × 1e7 정수 → lng = mapx/1e7, lat = mapy/1e7
 ------------------------------------------------------------------------- */
 // 프론트 OpenAPI 호출부 교체
+// 🔧 지역(POI) 검색 — 프론트 단독 호출 + 에러 로깅
 async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
   if (!id || !secret) {
-    console.error("[local] VITE_NAVER_SEARCH_CLIENT_ID/SECRET 없음");
-    throw new Error("환경변수가 없습니다 (Client-Id/Secret).");
+    console.warn("[local] 검색 API 키 없음(VITE_NAVER_SEARCH_CLIENT_ID/SECRET)");
+    return []; // 프론트-only 고집이라면 여기서 바로 빈 배열 반환
   }
 
-  const rawUrl = "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
-                 encodeURIComponent(q.trim());
-  const url = withProxy(rawUrl);
+  const raw =
+    "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
+    encodeURIComponent(q.trim());
+  const url = withProxy(raw);
 
-  const res = await fetch(url, {
-    headers: {
-      "Accept": "application/json",
-      "X-Naver-Client-Id": id,
-      "X-Naver-Client-Secret": secret,
-    },
-    signal,
-  }).catch((e) => {
-    console.error("[local] fetch error:", e);
-    throw new Error(`네트워크 오류(${e?.name || "unknown"})`);
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "X-Naver-Client-Id": id,
+        "X-Naver-Client-Secret": secret,
+      },
+      signal,
+    });
+  } catch (e) {
+    console.warn("[local] 네트워크/프록시 오류:", e);
+    return [];
+  }
 
-  // CORS 차단 시 res.type === "opaque"일 수도 있음
   if (!res.ok) {
+    // CORS/403/429 등은 빈 배열로 흘러가면 '결과 없음'으로 오해됨 → 콘솔로 남겨 진단
     const text = await res.text().catch(() => "");
-    console.error("[local] HTTP", res.status, res.type, text);
-    // 403은 거의 권한/키 문제
-    if (res.status === 403) throw new Error("403 (검색 API 권한/키 오류)");
-    // 429(쿼터초과), 400 등도 그대로 노출
-    throw new Error(`${res.status} ${res.statusText || ""} ${text || ""}`.trim());
+    console.warn("[local] HTTP", res.status, res.type, text);
+    return [];
   }
 
   let data: any = {};
   try {
     data = await res.json();
   } catch (e) {
-    console.error("[local] JSON 파싱 오류:", e);
-    throw new Error("응답 파싱 실패(JSON)");
+    console.warn("[local] JSON 파싱 실패:", e);
+    return [];
   }
 
-  const items: any[] = data?.items ?? [];
-  if (!Array.isArray(items)) {
-    console.error("[local] items 형식 이상:", data);
-    throw new Error("응답 형식 이상(items 아님)");
-  }
-
-  const out = items.map((v) => {
-    const title = stripTags(v.title || "");
-    const road = v.roadAddress || v.road_address || "";
-    const jibun = v.address || v.jibunAddress || "";
-    const mapx = Number(v.mapx);
-    const mapy = Number(v.mapy);
-    if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
-    const lng = mapx / 1e7;
-    const lat = mapy / 1e7;
-    return {
-      title: title || road || jibun || "이름 없음",
-      subtitle: road || jibun || undefined,
-      lat, lng,
-      address: road || jibun || title,
-    } as Suggest;
-  }).filter(Boolean) as Suggest[];
-
-  return out;
+  const items: any[] = Array.isArray(data?.items) ? data.items : [];
+  return items
+    .map((v) => {
+      const title = (v.title || "").replace(/<[^>]+>/g, "");
+      const road = v.roadAddress || v.road_address || "";
+      const jibun = v.address || v.jibunAddress || "";
+      const mapx = Number(v.mapx);
+      const mapy = Number(v.mapy);
+      if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
+      const lng = mapx / 1e7;     // x = lng (WGS84 * 1e7)
+      const lat = mapy / 1e7;     // y = lat (WGS84 * 1e7)
+      return {
+        title: title || road || jibun || "이름 없음",
+        subtitle: road || jibun || undefined,
+        lat, lng,
+        address: road || jibun || title,
+      } as Suggest;
+    })
+    .filter(Boolean) as Suggest[];
 }
 
 
