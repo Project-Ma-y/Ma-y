@@ -44,49 +44,75 @@ async function geocodeOnce(opts: any): Promise<any[]> {
    - 헤더: X-Naver-Client-Id / X-Naver-Client-Secret
    - 반환 mapx/mapy: WGS84 × 1e7 정수 → lng = mapx/1e7, lat = mapy/1e7
 ------------------------------------------------------------------------- */
+// 프론트 OpenAPI 호출부 교체
 async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
-  if (!id || !secret) return [];
+  if (!id || !secret) {
+    console.error("[local] VITE_NAVER_SEARCH_CLIENT_ID/SECRET 없음");
+    throw new Error("환경변수가 없습니다 (Client-Id/Secret).");
+  }
 
-  const url = withProxy(
-    "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
-      encodeURIComponent(q.trim())
-  );
+  const rawUrl = "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
+                 encodeURIComponent(q.trim());
+  const url = withProxy(rawUrl);
 
   const res = await fetch(url, {
     headers: {
+      "Accept": "application/json",
       "X-Naver-Client-Id": id,
       "X-Naver-Client-Secret": secret,
     },
     signal,
+  }).catch((e) => {
+    console.error("[local] fetch error:", e);
+    throw new Error(`네트워크 오류(${e?.name || "unknown"})`);
   });
+
+  // CORS 차단 시 res.type === "opaque"일 수도 있음
   if (!res.ok) {
-    // CORS 또는 403 등은 호출자에서 무시하고 다음 소스(지오코딩)로 보강
-    return [];
+    const text = await res.text().catch(() => "");
+    console.error("[local] HTTP", res.status, res.type, text);
+    // 403은 거의 권한/키 문제
+    if (res.status === 403) throw new Error("403 (검색 API 권한/키 오류)");
+    // 429(쿼터초과), 400 등도 그대로 노출
+    throw new Error(`${res.status} ${res.statusText || ""} ${text || ""}`.trim());
   }
-  const data = await res.json().catch(() => ({}));
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch (e) {
+    console.error("[local] JSON 파싱 오류:", e);
+    throw new Error("응답 파싱 실패(JSON)");
+  }
+
   const items: any[] = data?.items ?? [];
-  return items
-    .map((v) => {
-      const title = stripTags(v.title || "");
-      const road = v.roadAddress || v.road_address || "";
-      const jibun = v.address || v.jibunAddress || "";
-      const mapx = Number(v.mapx);
-      const mapy = Number(v.mapy);
-      if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
-      const lng = mapx / 1e7;
-      const lat = mapy / 1e7;
-      return {
-        title: title || road || jibun || "이름 없음",
-        subtitle: road || jibun || undefined,
-        lat,
-        lng,
-        address: road || jibun || title,
-      } as Suggest;
-    })
-    .filter(Boolean) as Suggest[];
+  if (!Array.isArray(items)) {
+    console.error("[local] items 형식 이상:", data);
+    throw new Error("응답 형식 이상(items 아님)");
+  }
+
+  const out = items.map((v) => {
+    const title = stripTags(v.title || "");
+    const road = v.roadAddress || v.road_address || "";
+    const jibun = v.address || v.jibunAddress || "";
+    const mapx = Number(v.mapx);
+    const mapy = Number(v.mapy);
+    if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
+    const lng = mapx / 1e7;
+    const lat = mapy / 1e7;
+    return {
+      title: title || road || jibun || "이름 없음",
+      subtitle: road || jibun || undefined,
+      lat, lng,
+      address: road || jibun || title,
+    } as Suggest;
+  }).filter(Boolean) as Suggest[];
+
+  return out;
 }
+
 
 /* ---------------- 주소 지오코딩 결과 파서 ---------------- */
 function toSuggestFromAddress(q: string, v: any): Suggest {
@@ -160,37 +186,37 @@ export default function SearchSelectBox({
   useEffect(() => setQ(value ?? ""), [value]);
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
-  const doSearch = async () => {
-    if (!canSearch) {
-      setItems([]);
-      setErr(null);
-      return;
-    }
-    inFlight.current += 1;
-    const token = inFlight.current;
+const doSearch = async () => {
+  if (!canSearch) { setItems([]); setErr(null); return; }
+  inFlight.current += 1;
+  const token = inFlight.current;
 
-    // 이전 요청 취소
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+  abortRef.current?.abort();
+  const ctrl = new AbortController();
+  abortRef.current = ctrl;
 
-    setLoading(true);
-    setErr(null);
-    try {
-      const list = await searchAny(q, mapCenter, ctrl.signal);
-      if (token !== inFlight.current) return;
-      setItems(list);
-      setOpen(true);
-      if (!list.length) setErr("검색 결과가 없습니다.");
-    } catch (e) {
-      if (token !== inFlight.current) return;
-      setErr("검색 실패. 잠시 후 다시 시도해주세요.");
-      setItems([]);
-      setOpen(true);
-    } finally {
-      if (token === inFlight.current) setLoading(false);
-    }
-  };
+  setLoading(true);
+  setErr(null);
+  try {
+    const list = await searchAny(q, mapCenter, ctrl.signal);
+    if (token !== inFlight.current) return;
+    setItems(list);
+    setOpen(true);
+    if (!list.length) setErr("검색 결과가 없습니다.");  // ← 진짜 빈 결과만
+  } catch (e: any) {
+    if (token !== inFlight.current) return;
+    // ← 실패 원인 그대로 노출
+    const msg = typeof e?.message === "string" ? e.message : "검색 실패";
+    setErr(msg);
+    setItems([]);
+    setOpen(true);
+    console.error("[searchAny fail]", e);
+  } finally {
+    if (token === inFlight.current) setLoading(false);
+  }
+};
+console.log(import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID, import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET)
+
 
   useEffect(() => {
     if (!canSearch) {
