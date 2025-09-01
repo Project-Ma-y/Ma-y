@@ -28,7 +28,7 @@ export function useFallbackBaseURL(): string {
 
 export const api = axios.create({
   baseURL: useFallbackBaseURL(),
-  withCredentials: true, // ✅ 서버 세션 병행 시 필요
+  withCredentials: false, // ✅ 서버 세션 병행 시 필요
   headers: { "Content-Type": "application/json" },
 });
 
