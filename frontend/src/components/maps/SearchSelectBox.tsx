@@ -17,7 +17,14 @@ interface Props {
   className?: string;
 }
 
-/* --- 기존 geocodeOnce 그대로 --- */
+/* ---------------- 공통 유틸 ---------------- */
+const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, "");
+const withProxy = (url: string) => {
+  const px = import.meta.env.VITE_NAVER_CORS_PROXY as string | undefined;
+  return px ? `${px}${url}` : url;
+};
+
+/* ---------------- 지오코딩: 지도 SDK ---------------- */
 async function geocodeOnce(opts: any): Promise<any[]> {
   const { naver } = window as any;
   return new Promise((resolve) => {
@@ -32,35 +39,56 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
-/* ✅ 프론트에서 “지역 검색 API” 직접 호출 */
-async function localSearchOnceFront(q: string): Promise<any[]> {
+/* ---------------- 지역(장소) 검색: 프론트에서 직접 OpenAPI 호출 ----------------
+   - 엔드포인트: https://openapi.naver.com/v1/search/local.json
+   - 헤더: X-Naver-Client-Id / X-Naver-Client-Secret
+   - 반환 mapx/mapy: WGS84 × 1e7 정수 → lng = mapx/1e7, lat = mapy/1e7
+------------------------------------------------------------------------- */
+async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
   if (!id || !secret) return [];
 
-  const url =
+  const url = withProxy(
     "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
-    encodeURIComponent(q.trim());
+      encodeURIComponent(q.trim())
+  );
 
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "X-Naver-Client-Id": id,
-        "X-Naver-Client-Secret": secret,
-      },
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data?.items ?? [];
-  } catch {
+  const res = await fetch(url, {
+    headers: {
+      "X-Naver-Client-Id": id,
+      "X-Naver-Client-Secret": secret,
+    },
+    signal,
+  });
+  if (!res.ok) {
+    // CORS 또는 403 등은 호출자에서 무시하고 다음 소스(지오코딩)로 보강
     return [];
   }
+  const data = await res.json().catch(() => ({}));
+  const items: any[] = data?.items ?? [];
+  return items
+    .map((v) => {
+      const title = stripTags(v.title || "");
+      const road = v.roadAddress || v.road_address || "";
+      const jibun = v.address || v.jibunAddress || "";
+      const mapx = Number(v.mapx);
+      const mapy = Number(v.mapy);
+      if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
+      const lng = mapx / 1e7;
+      const lat = mapy / 1e7;
+      return {
+        title: title || road || jibun || "이름 없음",
+        subtitle: road || jibun || undefined,
+        lat,
+        lng,
+        address: road || jibun || title,
+      } as Suggest;
+    })
+    .filter(Boolean) as Suggest[];
 }
 
-function stripTags(s: string) {
-  return (s || "").replace(/<[^>]+>/g, "");
-}
-
+/* ---------------- 주소 지오코딩 결과 파서 ---------------- */
 function toSuggestFromAddress(q: string, v: any): Suggest {
   const lat = Number(v.y);
   const lng = Number(v.x);
@@ -75,54 +103,33 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
   };
 }
 
-/* ✅ 지역 API 결과 → Suggest (WGS84 × 1e7 정수 → 실수로 변환) */
-function toSuggestFromLocalItem(v: any): Suggest | null {
-  const title = stripTags(v.title || "");
-  const road = v.roadAddress || v.road_address || "";
-  const jibun = v.address || v.jibunAddress || "";
-
-  const mapx = Number(v.mapx);
-  const mapy = Number(v.mapy);
-  if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
-
-  const lng = mapx / 1e7; // x = longitude
-  const lat = mapy / 1e7; // y = latitude
-
-  return {
-    title: title || road || jibun,
-    subtitle: road || jibun || undefined,
-    lat,
-    lng,
-    address: road || jibun || title,
-  };
-}
-
-/* 🔎 주소 지오코딩 + 지역(장소) 검색 병합 */
-async function searchAny(q: string, center?: { lat: number; lng: number }): Promise<Suggest[]> {
+/* ---------------- 통합 검색 ---------------- */
+async function searchAny(
+  q: string,
+  center?: { lat: number; lng: number },
+  signal?: AbortSignal
+): Promise<Suggest[]> {
   const { naver } = window as any;
   const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
 
-  // 1) 지오코딩(주소/키워드)
+  // 1) 지역(POI) 검색 – 건물/역명 우선
+  const fromLocal = await localSearchFront(q, signal).catch(() => []);
+
+  // 2) 주소/키워드 지오코딩 – 보강
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
   if (!list.length) list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
-  const fromAddr = list.map((v) => toSuggestFromAddress(q, v));
+  const fromSDK = list.map((v) => toSuggestFromAddress(q, v));
 
-  // 2) 지역(장소) 검색 – 프론트에서 직접 호출
-  const localItems = await localSearchOnceFront(q);
-  const fromLocal = (localItems || [])
-    .map((v: any) => toSuggestFromLocalItem(v))
-    .filter(Boolean) as Suggest[];
-
-  // 3) 합치고 중복 제거
+  // 3) 합치고 중복 제거 (주소+좌표)
   const seen = new Set<string>();
-  const merged = [...fromLocal, ...fromAddr].filter((s) => {
-    const k = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
+  const merged = [...fromLocal, ...fromSDK].filter((s) => {
+    const key = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 
-  // 4) center 기준 가까운 순 정렬(선택)
+  // 4) center 가까운 순 정렬(있으면)
   if (center) {
     merged.sort((a, b) => {
       const da = Math.hypot(a.lat - center.lat, a.lng - center.lng);
@@ -130,12 +137,17 @@ async function searchAny(q: string, center?: { lat: number; lng: number }): Prom
       return da - db;
     });
   }
-
   return merged.slice(0, 10);
 }
 
-/* --- 이하 컴포넌트 본문은 기존과 동일 --- */
-export default function SearchSelectBox({ placeholder, value, mapCenter, onSelect, className = "" }: Props) {
+/* ---------------- 컴포넌트 ---------------- */
+export default function SearchSelectBox({
+  placeholder,
+  value,
+  mapCenter,
+  onSelect,
+  className = "",
+}: Props) {
   const [q, setQ] = useState(value ?? "");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Suggest[]>([]);
@@ -143,32 +155,49 @@ export default function SearchSelectBox({ placeholder, value, mapCenter, onSelec
   const [err, setErr] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
   const inFlight = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => setQ(value ?? ""), [value]);
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
   const doSearch = async () => {
-    if (!canSearch) { setItems([]); setErr(null); return; }
+    if (!canSearch) {
+      setItems([]);
+      setErr(null);
+      return;
+    }
     inFlight.current += 1;
     const token = inFlight.current;
-    setLoading(true); setErr(null);
+
+    // 이전 요청 취소
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    setLoading(true);
+    setErr(null);
     try {
-      const list = await searchAny(q, mapCenter);
+      const list = await searchAny(q, mapCenter, ctrl.signal);
       if (token !== inFlight.current) return;
       setItems(list);
-      if (!list.length) setErr("검색 결과가 없습니다.");
       setOpen(true);
-    } catch {
+      if (!list.length) setErr("검색 결과가 없습니다.");
+    } catch (e) {
       if (token !== inFlight.current) return;
       setErr("검색 실패. 잠시 후 다시 시도해주세요.");
-      setItems([]); setOpen(true);
+      setItems([]);
+      setOpen(true);
     } finally {
       if (token === inFlight.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!canSearch) { setItems([]); setErr(null); return; }
+    if (!canSearch) {
+      setItems([]);
+      setErr(null);
+      return;
+    }
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(doSearch, 250);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,7 +209,12 @@ export default function SearchSelectBox({ placeholder, value, mapCenter, onSelec
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => (items.length || err) && setOpen(true)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doSearch(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            doSearch();
+          }
+        }}
         placeholder={placeholder}
         className="w-full px-3 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
       />
@@ -188,18 +222,24 @@ export default function SearchSelectBox({ placeholder, value, mapCenter, onSelec
         <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border bg-white shadow max-h-72 overflow-auto">
           {loading && <div className="px-3 py-2 text-sm text-gray-500">검색 중…</div>}
           {!loading && err && <div className="px-3 py-2 text-sm text-red-500">{err}</div>}
-          {!loading && !err && items.map((it, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onSelect(it); setQ(it.address); setOpen(false); }}
-              className="w-full text-left px-3 py-2 hover:bg-gray-50"
-            >
-              <div className="text-sm font-medium">{it.title}</div>
-              {it.subtitle && <div className="text-xs text-gray-500">{it.subtitle}</div>}
-            </button>
-          ))}
+          {!loading &&
+            !err &&
+            items.map((it, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onSelect(it);
+                  setQ(it.address);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50"
+              >
+                <div className="text-sm font-medium">{it.title}</div>
+                {it.subtitle && <div className="text-xs text-gray-500">{it.subtitle}</div>}
+              </button>
+            ))}
         </div>
       )}
     </div>
