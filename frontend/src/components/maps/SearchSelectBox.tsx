@@ -49,8 +49,9 @@ function stripTags(s: string) {
 }
 
 function toSuggestFromAddress(q: string, v: any): Suggest {
-  const lat = Number(v.y);
-  const lng = Number(v.x);
+const lng = Number(v.mapx) / 1e7;
+const lat = Number(v.mapy) / 1e7;
+
   const road = v.roadAddress || "";
   const jibun = v.jibunAddress || "";
   return {
@@ -62,28 +63,33 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
   };
 }
 
-// ✅ 새로 추가: 지역(local) API 아이템 → Suggest
+// ✅ 지역(local) API 아이템 → Suggest (WGS84 1e7 스케일 반영)
 function toSuggestFromLocalItem(v: any): Suggest | null {
-  const { naver } = window as any;
+  // title에는 <b>태그 등 HTML이 섞여 올 수 있음 → 제거
+  const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, "");
+
   const title = stripTags(v.title || v.name || "");
   const road = v.roadAddress || v.road_address || "";
   const jibun = v.address || v.jibunAddress || "";
+
+  // 2023-08-25 이후: mapx/mapy는 WGS84 * 1e7 (정수)
   const mapx = Number(v.mapx);
   const mapy = Number(v.mapy);
-  if (Number.isNaN(mapx) || Number.isNaN(mapy)) return null;
+  if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
 
-  // TM128 → LatLng
-  // naver.maps.TransCoord.fromTM128ToLatLng(Point)
-  const pt = new naver.maps.Point(mapx, mapy);
-  const ll = naver.maps.TransCoord.fromTM128ToLatLng(pt);
+  const lng = mapx / 1e7; // x = longitude
+  const lat = mapy / 1e7; // y = latitude
+
   return {
     title: title || road || jibun,
     subtitle: road || jibun || undefined,
-    lat: ll.y,
-    lng: ll.x,
+    lat,
+    lng,
+    // 주소가 없으면 장소명으로 대체
     address: road || jibun || title,
   };
 }
+
 
 async function searchAny(q: string, center?: { lat: number; lng: number }): Promise<Suggest[]> {
   const { naver } = window as any;
