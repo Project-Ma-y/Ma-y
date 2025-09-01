@@ -17,19 +17,30 @@ interface Props {
   className?: string;
 }
 
-/* ---------------- 공통 유틸 ---------------- */
+/* ========== 유틸 ========== */
 const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, "");
+
+/** 선택(옵션): CORS 회피용 임시 프록시 (테스트용만 권장)
+ *  .env.local
+ *    VITE_NAVER_CORS_PROXY=https://cors.isomorphic-git.org/   // 필요시만
+ *  운영 전환 시 비우거나 백엔드 프록시로 교체 권장
+ */
 const withProxy = (url: string) => {
   const px = import.meta.env.VITE_NAVER_CORS_PROXY as string | undefined;
   return px ? `${px}${url}` : url;
 };
 
-/* ---------------- 지오코딩: 지도 SDK ---------------- */
+/* ========== 지도 SDK 지오코딩 (주소/키워드) ========== */
 async function geocodeOnce(opts: any): Promise<any[]> {
   const { naver } = window as any;
   return new Promise((resolve) => {
     let settled = false;
-    const timer = setTimeout(() => { if (!settled) { settled = true; resolve([]); } }, 4000);
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve([]);
+      }
+    }, 4000);
     naver.maps.Service.geocode(opts, (status: any, resp: any) => {
       if (settled) return;
       clearTimeout(timer);
@@ -39,19 +50,19 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
-/* ---------------- 지역(장소) 검색: 프론트에서 직접 OpenAPI 호출 ----------------
-   - 엔드포인트: https://openapi.naver.com/v1/search/local.json
-   - 헤더: X-Naver-Client-Id / X-Naver-Client-Secret
-   - 반환 mapx/mapy: WGS84 × 1e7 정수 → lng = mapx/1e7, lat = mapy/1e7
-------------------------------------------------------------------------- */
-// 프론트 OpenAPI 호출부 교체
-// 🔧 지역(POI) 검색 — 프론트 단독 호출 + 에러 로깅
+/* ========== 지역(POI) 검색 – 프론트에서 네이버 OpenAPI 직접 호출 ========== */
+/** 주의: 프론트 노출 감수.
+ *  .env.local
+ *    VITE_NAVER_SEARCH_CLIENT_ID=발급값
+ *    VITE_NAVER_SEARCH_CLIENT_SECRET=발급값
+ */
 async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
   if (!id || !secret) {
-    console.warn("[local] 검색 API 키 없음(VITE_NAVER_SEARCH_CLIENT_ID/SECRET)");
-    return []; // 프론트-only 고집이라면 여기서 바로 빈 배열 반환
+    // 환경변수 없으면 조용히 실패 처리 (지오코딩 보강으로만 진행)
+    console.warn("[local] VITE_NAVER_SEARCH_CLIENT_ID/SECRET 없음");
+    return [];
   }
 
   const raw =
@@ -63,7 +74,7 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
   try {
     res = await fetch(url, {
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         "X-Naver-Client-Id": id,
         "X-Naver-Client-Secret": secret,
       },
@@ -75,43 +86,38 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
   }
 
   if (!res.ok) {
-    // CORS/403/429 등은 빈 배열로 흘러가면 '결과 없음'으로 오해됨 → 콘솔로 남겨 진단
+    // CORS/403/429 등 → 콘솔 로깅만 하고 빈 배열
     const text = await res.text().catch(() => "");
     console.warn("[local] HTTP", res.status, res.type, text);
     return [];
   }
 
-  let data: any = {};
-  try {
-    data = await res.json();
-  } catch (e) {
-    console.warn("[local] JSON 파싱 실패:", e);
-    return [];
-  }
-
+  const data = await res.json().catch(() => ({}));
   const items: any[] = Array.isArray(data?.items) ? data.items : [];
+
+  // 지역 API 좌표: WGS84 × 1e7 정수 → 실좌표로 변환
   return items
     .map((v) => {
-      const title = (v.title || "").replace(/<[^>]+>/g, "");
+      const title = stripTags(v.title || "");
       const road = v.roadAddress || v.road_address || "";
       const jibun = v.address || v.jibunAddress || "";
       const mapx = Number(v.mapx);
       const mapy = Number(v.mapy);
       if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
-      const lng = mapx / 1e7;     // x = lng (WGS84 * 1e7)
-      const lat = mapy / 1e7;     // y = lat (WGS84 * 1e7)
+      const lng = mapx / 1e7; // x = lng
+      const lat = mapy / 1e7; // y = lat
       return {
         title: title || road || jibun || "이름 없음",
         subtitle: road || jibun || undefined,
-        lat, lng,
+        lat,
+        lng,
         address: road || jibun || title,
       } as Suggest;
     })
     .filter(Boolean) as Suggest[];
 }
 
-
-/* ---------------- 주소 지오코딩 결과 파서 ---------------- */
+/* ========== 지도 SDK 지오코딩 결과 → Suggest 변환 ========== */
 function toSuggestFromAddress(q: string, v: any): Suggest {
   const lat = Number(v.y);
   const lng = Number(v.x);
@@ -126,7 +132,7 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
   };
 }
 
-/* ---------------- 통합 검색 ---------------- */
+/* ========== 통합 검색 (POI 우선 → 주소 보강) ========== */
 async function searchAny(
   q: string,
   center?: { lat: number; lng: number },
@@ -135,15 +141,15 @@ async function searchAny(
   const { naver } = window as any;
   const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
 
-  // 1) 지역(POI) 검색 – 건물/역명 우선
+  // 1) 장소(POI) – 지역 검색 먼저 (역/건물명 대응)
   const fromLocal = await localSearchFront(q, signal).catch(() => []);
 
-  // 2) 주소/키워드 지오코딩 – 보강
+  // 2) 주소/키워드 – 지도 SDK 지오코딩으로 보강
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
   if (!list.length) list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
   const fromSDK = list.map((v) => toSuggestFromAddress(q, v));
 
-  // 3) 합치고 중복 제거 (주소+좌표)
+  // 3) 병합 + 중복 제거 (주소+좌표 키)
   const seen = new Set<string>();
   const merged = [...fromLocal, ...fromSDK].filter((s) => {
     const key = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
@@ -152,7 +158,7 @@ async function searchAny(
     return true;
   });
 
-  // 4) center 가까운 순 정렬(있으면)
+  // 4) center 기준 가까운 순 정렬(있으면)
   if (center) {
     merged.sort((a, b) => {
       const da = Math.hypot(a.lat - center.lat, a.lng - center.lng);
@@ -160,10 +166,11 @@ async function searchAny(
       return da - db;
     });
   }
+
   return merged.slice(0, 10);
 }
 
-/* ---------------- 컴포넌트 ---------------- */
+/* ========== 컴포넌트 ========== */
 export default function SearchSelectBox({
   placeholder,
   value,
@@ -176,44 +183,48 @@ export default function SearchSelectBox({
   const [items, setItems] = useState<Suggest[]>([]);
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
   const timer = useRef<number | null>(null);
   const inFlight = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => setQ(value ?? ""), [value]);
+
+  // 2글자 이상부터 검색 (원하면 1로 낮춰 확인)
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
-const doSearch = async () => {
-  if (!canSearch) { setItems([]); setErr(null); return; }
-  inFlight.current += 1;
-  const token = inFlight.current;
+  const doSearch = async () => {
+    if (!canSearch) {
+      setItems([]);
+      setErr(null);
+      return;
+    }
+    inFlight.current += 1;
+    const token = inFlight.current;
 
-  abortRef.current?.abort();
-  const ctrl = new AbortController();
-  abortRef.current = ctrl;
+    // 이전 요청 취소
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
-  setLoading(true);
-  setErr(null);
-  try {
-    const list = await searchAny(q, mapCenter, ctrl.signal);
-    if (token !== inFlight.current) return;
-    setItems(list);
-    setOpen(true);
-    if (!list.length) setErr("검색 결과가 없습니다.");  // ← 진짜 빈 결과만
-  } catch (e: any) {
-    if (token !== inFlight.current) return;
-    // ← 실패 원인 그대로 노출
-    const msg = typeof e?.message === "string" ? e.message : "검색 실패";
-    setErr(msg);
-    setItems([]);
-    setOpen(true);
-    console.error("[searchAny fail]", e);
-  } finally {
-    if (token === inFlight.current) setLoading(false);
-  }
-};
-console.log(import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID, import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET)
-
+    setLoading(true);
+    setErr(null);
+    try {
+      const list = await searchAny(q, mapCenter, ctrl.signal);
+      if (token !== inFlight.current) return; // 레이스 방지
+      setItems(list);
+      setOpen(true);
+      if (!list.length) setErr("검색 결과가 없습니다.");
+    } catch (e: any) {
+      if (token !== inFlight.current) return;
+      const msg = typeof e?.message === "string" ? e.message : "검색 실패. 잠시 후 다시 시도해주세요.";
+      setErr(msg);
+      setItems([]);
+      setOpen(true);
+    } finally {
+      if (token === inFlight.current) setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!canSearch) {
