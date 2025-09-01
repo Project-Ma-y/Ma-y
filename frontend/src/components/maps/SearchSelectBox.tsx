@@ -1,6 +1,5 @@
 // src/components/maps/SearchSelectBox.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "@/lib/api"; // ✅ axios 인스턴스 (이미 프로젝트에 있음)
 
 type Suggest = {
   title: string;
@@ -18,8 +17,7 @@ interface Props {
   className?: string;
 }
 
-// -------------------- 기존 geocodeOnce 그대로 사용 --------------------
-
+/* --- 기존 geocodeOnce 그대로 --- */
 async function geocodeOnce(opts: any): Promise<any[]> {
   const { naver } = window as any;
   return new Promise((resolve) => {
@@ -34,11 +32,26 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
-// ✅ 새로 추가: 네이버 지역(local) 검색 프록시 호출
-async function localSearchOnce(q: string): Promise<any[]> {
+/* ✅ 프론트에서 “지역 검색 API” 직접 호출 */
+async function localSearchOnceFront(q: string): Promise<any[]> {
+  const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
+  const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
+  if (!id || !secret) return [];
+
+  const url =
+    "https://openapi.naver.com/v1/search/local.json?display=5&start=1&sort=random&query=" +
+    encodeURIComponent(q.trim());
+
   try {
-    const res = await api.get("/naver/local", { params: { q } });
-    return res.data?.items ?? [];
+    const res = await fetch(url, {
+      headers: {
+        "X-Naver-Client-Id": id,
+        "X-Naver-Client-Secret": secret,
+      },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.items ?? [];
   } catch {
     return [];
   }
@@ -49,9 +62,8 @@ function stripTags(s: string) {
 }
 
 function toSuggestFromAddress(q: string, v: any): Suggest {
-const lng = Number(v.mapx) / 1e7;
-const lat = Number(v.mapy) / 1e7;
-
+  const lat = Number(v.y);
+  const lng = Number(v.x);
   const road = v.roadAddress || "";
   const jibun = v.jibunAddress || "";
   return {
@@ -63,16 +75,12 @@ const lat = Number(v.mapy) / 1e7;
   };
 }
 
-// ✅ 지역(local) API 아이템 → Suggest (WGS84 1e7 스케일 반영)
+/* ✅ 지역 API 결과 → Suggest (WGS84 × 1e7 정수 → 실수로 변환) */
 function toSuggestFromLocalItem(v: any): Suggest | null {
-  // title에는 <b>태그 등 HTML이 섞여 올 수 있음 → 제거
-  const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, "");
-
-  const title = stripTags(v.title || v.name || "");
+  const title = stripTags(v.title || "");
   const road = v.roadAddress || v.road_address || "";
   const jibun = v.address || v.jibunAddress || "";
 
-  // 2023-08-25 이후: mapx/mapy는 WGS84 * 1e7 (정수)
   const mapx = Number(v.mapx);
   const mapy = Number(v.mapy);
   if (!Number.isFinite(mapx) || !Number.isFinite(mapy)) return null;
@@ -85,29 +93,27 @@ function toSuggestFromLocalItem(v: any): Suggest | null {
     subtitle: road || jibun || undefined,
     lat,
     lng,
-    // 주소가 없으면 장소명으로 대체
     address: road || jibun || title,
   };
 }
 
-
+/* 🔎 주소 지오코딩 + 지역(장소) 검색 병합 */
 async function searchAny(q: string, center?: { lat: number; lng: number }): Promise<Suggest[]> {
   const { naver } = window as any;
   const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
-  // 1) 주소/키워드 지오코딩
+
+  // 1) 지오코딩(주소/키워드)
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
-  if (!list.length) {
-    list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
-  }
+  if (!list.length) list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
   const fromAddr = list.map((v) => toSuggestFromAddress(q, v));
 
-  // 2) 장소(POI) — 네이버 지역(local) 검색으로 보강
-  const localItems = await localSearchOnce(q);
+  // 2) 지역(장소) 검색 – 프론트에서 직접 호출
+  const localItems = await localSearchOnceFront(q);
   const fromLocal = (localItems || [])
     .map((v: any) => toSuggestFromLocalItem(v))
     .filter(Boolean) as Suggest[];
 
-  // 3) 합치고, 같은 위경도/주소는 간단히 중복 제거
+  // 3) 합치고 중복 제거
   const seen = new Set<string>();
   const merged = [...fromLocal, ...fromAddr].filter((s) => {
     const k = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
@@ -116,7 +122,7 @@ async function searchAny(q: string, center?: { lat: number; lng: number }): Prom
     return true;
   });
 
-  // 4) (선택) center가 있으면 거리 순 정렬
+  // 4) center 기준 가까운 순 정렬(선택)
   if (center) {
     merged.sort((a, b) => {
       const da = Math.hypot(a.lat - center.lat, a.lng - center.lng);
@@ -128,6 +134,7 @@ async function searchAny(q: string, center?: { lat: number; lng: number }): Prom
   return merged.slice(0, 10);
 }
 
+/* --- 이하 컴포넌트 본문은 기존과 동일 --- */
 export default function SearchSelectBox({ placeholder, value, mapCenter, onSelect, className = "" }: Props) {
   const [q, setQ] = useState(value ?? "");
   const [loading, setLoading] = useState(false);
@@ -141,9 +148,7 @@ export default function SearchSelectBox({ placeholder, value, mapCenter, onSelec
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
   const doSearch = async () => {
-    if (!canSearch) {
-      setItems([]); setErr(null); return;
-    }
+    if (!canSearch) { setItems([]); setErr(null); return; }
     inFlight.current += 1;
     const token = inFlight.current;
     setLoading(true); setErr(null);
