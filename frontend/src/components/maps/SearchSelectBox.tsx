@@ -17,20 +17,19 @@ interface Props {
   className?: string;
 }
 
-/* ========== 유틸 ========== */
+/* ===================== 유틸 ===================== */
 const stripTags = (s: string) => (s || "").replace(/<[^>]+>/g, "");
 
-/** 선택(옵션): CORS 회피용 임시 프록시 (테스트용만 권장)
- *  .env.local
- *    VITE_NAVER_CORS_PROXY=https://cors.isomorphic-git.org/   // 필요시만
- *  운영 전환 시 비우거나 백엔드 프록시로 교체 권장
+/** (선택) CORS 회피용 임시 프록시 – 테스트용으로만 사용 (운영 비권장)
+ *  .env.local 예:
+ *   VITE_NAVER_CORS_PROXY=https://cors.isomorphic-git.org/
  */
 const withProxy = (url: string) => {
   const px = import.meta.env.VITE_NAVER_CORS_PROXY as string | undefined;
   return px ? `${px}${url}` : url;
 };
 
-/* ========== 지도 SDK 지오코딩 (주소/키워드) ========== */
+/* ===================== 지도 SDK 지오코딩 (주소/키워드) ===================== */
 async function geocodeOnce(opts: any): Promise<any[]> {
   const { naver } = window as any;
   return new Promise((resolve) => {
@@ -50,19 +49,21 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
-/* ========== 지역(POI) 검색 – 프론트에서 네이버 OpenAPI 직접 호출 ========== */
-/** 주의: 프론트 노출 감수.
- *  .env.local
- *    VITE_NAVER_SEARCH_CLIENT_ID=발급값
- *    VITE_NAVER_SEARCH_CLIENT_SECRET=발급값
+/* ===================== 지역(POI) 검색 – 프론트에서 네이버 OpenAPI 직접 호출 ===================== */
+/** 주의: 프론트에 키가 노출됩니다 (개발/내부 테스트용).
+ * .env.local 예:
+ *  VITE_NAVER_SEARCH_CLIENT_ID=발급값
+ *  VITE_NAVER_SEARCH_CLIENT_SECRET=발급값
  */
 async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
+
+  // 진단용 로그
+  console.log("[local] env", { id, secret: !!secret });
+
   if (!id || !secret) {
-    // 환경변수 없으면 조용히 실패 처리 (지오코딩 보강으로만 진행)
-    console.warn("[local] VITE_NAVER_SEARCH_CLIENT_ID/SECRET 없음");
-    return [];
+    throw new Error("검색 API 키 없음: VITE_NAVER_SEARCH_CLIENT_ID / VITE_NAVER_SEARCH_CLIENT_SECRET");
   }
 
   const raw =
@@ -70,6 +71,7 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
     encodeURIComponent(q.trim());
   const url = withProxy(raw);
 
+  console.log("[local] fetch →", url);
   let res: Response;
   try {
     res = await fetch(url, {
@@ -80,22 +82,26 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
       },
       signal,
     });
-  } catch (e) {
-    console.warn("[local] 네트워크/프록시 오류:", e);
-    return [];
+  } catch (e: any) {
+    console.error("[local] fetch error:", e);
+    throw new Error(`네트워크/프록시 오류: ${e?.message || e}`);
   }
 
   if (!res.ok) {
-    // CORS/403/429 등 → 콘솔 로깅만 하고 빈 배열
     const text = await res.text().catch(() => "");
-    console.warn("[local] HTTP", res.status, res.type, text);
-    return [];
+    console.error("[local] HTTP", res.status, res.type, text);
+    throw new Error(`지역 검색 HTTP ${res.status} ${res.statusText} ${text}`);
   }
 
-  const data = await res.json().catch(() => ({}));
-  const items: any[] = Array.isArray(data?.items) ? data.items : [];
+  const data = await res.json().catch((e) => {
+    console.error("[local] JSON parse fail", e);
+    throw new Error("지역 검색 응답 파싱 실패(JSON)");
+  });
 
-  // 지역 API 좌표: WGS84 × 1e7 정수 → 실좌표로 변환
+  const items: any[] = Array.isArray(data?.items) ? data.items : [];
+  console.log("[local] items len:", items.length);
+
+  // 지역 API 좌표는 WGS84 × 1e7 정수 → 실좌표로 변환
   return items
     .map((v) => {
       const title = stripTags(v.title || "");
@@ -117,7 +123,7 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
     .filter(Boolean) as Suggest[];
 }
 
-/* ========== 지도 SDK 지오코딩 결과 → Suggest 변환 ========== */
+/* ===================== 지도 SDK 지오코딩 결과 파서 ===================== */
 function toSuggestFromAddress(q: string, v: any): Suggest {
   const lat = Number(v.y);
   const lng = Number(v.x);
@@ -132,7 +138,7 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
   };
 }
 
-/* ========== 통합 검색 (POI 우선 → 주소 보강) ========== */
+/* ===================== 통합 검색 (POI 우선 → 주소 보강) ===================== */
 async function searchAny(
   q: string,
   center?: { lat: number; lng: number },
@@ -141,8 +147,8 @@ async function searchAny(
   const { naver } = window as any;
   const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
 
-  // 1) 장소(POI) – 지역 검색 먼저 (역/건물명 대응)
-  const fromLocal = await localSearchFront(q, signal).catch(() => []);
+  // 1) 장소(POI) – 지역 검색 먼저 (openapi.naver.com 호출이 여기서 반드시 발생)
+  const fromLocal = await localSearchFront(q, signal);
 
   // 2) 주소/키워드 – 지도 SDK 지오코딩으로 보강
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
@@ -170,7 +176,7 @@ async function searchAny(
   return merged.slice(0, 10);
 }
 
-/* ========== 컴포넌트 ========== */
+/* ===================== 컴포넌트 ===================== */
 export default function SearchSelectBox({
   placeholder,
   value,
@@ -178,6 +184,8 @@ export default function SearchSelectBox({
   onSelect,
   className = "",
 }: Props) {
+  console.log("[SearchSelectBox] mounted"); // 진단용
+
   const [q, setQ] = useState(value ?? "");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Suggest[]>([]);
@@ -190,7 +198,7 @@ export default function SearchSelectBox({
 
   useEffect(() => setQ(value ?? ""), [value]);
 
-  // 2글자 이상부터 검색 (원하면 1로 낮춰 확인)
+  // 테스트 편의상 1글자부터도 가능. 기본은 2글자.
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
   const doSearch = async () => {
@@ -218,9 +226,10 @@ export default function SearchSelectBox({
     } catch (e: any) {
       if (token !== inFlight.current) return;
       const msg = typeof e?.message === "string" ? e.message : "검색 실패. 잠시 후 다시 시도해주세요.";
-      setErr(msg);
+      setErr(msg); // 에러 원문 노출 → 원인 파악 쉬움(CORS/403 등)
       setItems([]);
       setOpen(true);
+      console.error("[searchAny fail]", e);
     } finally {
       if (token === inFlight.current) setLoading(false);
     }
