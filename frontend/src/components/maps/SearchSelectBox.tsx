@@ -1,5 +1,6 @@
 // src/components/maps/SearchSelectBox.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "@/lib/api"; // ✅ axios 인스턴스 (이미 프로젝트에 있음)
 
 type Suggest = {
   title: string;
@@ -17,17 +18,13 @@ interface Props {
   className?: string;
 }
 
-// 공통: geocode 호출 (4초 타임아웃)
+// -------------------- 기존 geocodeOnce 그대로 사용 --------------------
+
 async function geocodeOnce(opts: any): Promise<any[]> {
   const { naver } = window as any;
   return new Promise((resolve) => {
     let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve([]);
-      }
-    }, 4000);
+    const timer = setTimeout(() => { if (!settled) { settled = true; resolve([]); } }, 4000);
     naver.maps.Service.geocode(opts, (status: any, resp: any) => {
       if (settled) return;
       clearTimeout(timer);
@@ -37,45 +34,18 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
-// (있으면) 장소 검색 호출 – 메서드명을 런타임에서 탐지
-async function placeSearchOnce(q: string, center?: { lat: number; lng: number }): Promise<any[]> {
-  const { naver } = window as any;
-  const Svc = naver?.maps?.Service;
-  if (!Svc) return [];
-  const fn =
-    (Svc as any).search ||
-    (Svc as any).placeSearch ||
-    (Svc as any).searchPoi ||
-    null;
-  if (!fn) return [];
+// ✅ 새로 추가: 네이버 지역(local) 검색 프록시 호출
+async function localSearchOnce(q: string): Promise<any[]> {
+  try {
+    const res = await api.get("/naver/local", { params: { q } });
+    return res.data?.items ?? [];
+  } catch {
+    return [];
+  }
+}
 
-  return new Promise((resolve) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        resolve([]);
-      }
-    }, 4000);
-
-    const opts: any = { query: q.trim() };
-    if (center) {
-      opts.coords = new naver.maps.LatLng(center.lat, center.lng);
-    }
-
-    fn.call(Svc, opts, (status: any, resp: any) => {
-      if (settled) return;
-      clearTimeout(timer);
-      if (status !== naver.maps.Service.Status.OK) return resolve([]);
-      // 응답 포맷이 SDK 버전에 따라 다를 수 있으므로 최대한 안전하게 파싱
-      const items =
-        resp?.result?.items ??
-        resp?.v2?.addresses ?? // 혹시 동일 구조일 때
-        resp?.places ??
-        [];
-      resolve(items);
-    });
-  });
+function stripTags(s: string) {
+  return (s || "").replace(/<[^>]+>/g, "");
 }
 
 function toSuggestFromAddress(q: string, v: any): Suggest {
@@ -92,55 +62,67 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
   };
 }
 
-function toSuggestFromPlace(q: string, v: any): Suggest | null {
-  // 가능한 키들을 최대한 커버 (장소 응답 케이스별)
-  const name = v.title || v.name || v.placeName || v.display || q;
-  const road = v.roadAddress || v.address || v.road_address || "";
-  const jibun = v.jibunAddress || v.jibun_address || "";
-  const lat = Number(v.y || v.lat || v.latitude);
-  const lng = Number(v.x || v.lng || v.longitude);
-  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+// ✅ 새로 추가: 지역(local) API 아이템 → Suggest
+function toSuggestFromLocalItem(v: any): Suggest | null {
+  const { naver } = window as any;
+  const title = stripTags(v.title || v.name || "");
+  const road = v.roadAddress || v.road_address || "";
+  const jibun = v.address || v.jibunAddress || "";
+  const mapx = Number(v.mapx);
+  const mapy = Number(v.mapy);
+  if (Number.isNaN(mapx) || Number.isNaN(mapy)) return null;
 
+  // TM128 → LatLng
+  // naver.maps.TransCoord.fromTM128ToLatLng(Point)
+  const pt = new naver.maps.Point(mapx, mapy);
+  const ll = naver.maps.TransCoord.fromTM128ToLatLng(pt);
   return {
-    title: name,
+    title: title || road || jibun,
     subtitle: road || jibun || undefined,
-    lat,
-    lng,
-    address: road || jibun || name, // 주소가 없으면 장소명으로 세팅
+    lat: ll.y,
+    lng: ll.x,
+    address: road || jibun || title,
   };
 }
 
 async function searchAny(q: string, center?: { lat: number; lng: number }): Promise<Suggest[]> {
+  const { naver } = window as any;
+  const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
   // 1) 주소/키워드 지오코딩
-  const base = center ? { coords: new (window as any).naver.maps.LatLng(center.lat, center.lng) } : {};
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
-
-  // 2) 주소 파라미터로 한 번 더
   if (!list.length) {
     list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
   }
+  const fromAddr = list.map((v) => toSuggestFromAddress(q, v));
 
-  let suggests = list.map((v) => toSuggestFromAddress(q, v));
+  // 2) 장소(POI) — 네이버 지역(local) 검색으로 보강
+  const localItems = await localSearchOnce(q);
+  const fromLocal = (localItems || [])
+    .map((v: any) => toSuggestFromLocalItem(v))
+    .filter(Boolean) as Suggest[];
 
-  // 3) 여전히 부족하면 “장소 검색” 시도 (SDK가 제공하는 경우에 한함)
-  if (!suggests.length) {
-    const places = await placeSearchOnce(q, center);
-    const s2 = places
-      .map((v) => toSuggestFromPlace(q, v))
-      .filter(Boolean) as Suggest[];
-    suggests = s2;
+  // 3) 합치고, 같은 위경도/주소는 간단히 중복 제거
+  const seen = new Set<string>();
+  const merged = [...fromLocal, ...fromAddr].filter((s) => {
+    const k = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  // 4) (선택) center가 있으면 거리 순 정렬
+  if (center) {
+    merged.sort((a, b) => {
+      const da = Math.hypot(a.lat - center.lat, a.lng - center.lng);
+      const db = Math.hypot(b.lat - center.lat, b.lng - center.lng);
+      return da - db;
+    });
   }
 
-  return suggests;
+  return merged.slice(0, 10);
 }
 
-export default function SearchSelectBox({
-  placeholder,
-  value,
-  mapCenter,
-  onSelect,
-  className = "",
-}: Props) {
+export default function SearchSelectBox({ placeholder, value, mapCenter, onSelect, className = "" }: Props) {
   const [q, setQ] = useState(value ?? "");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Suggest[]>([]);
@@ -150,42 +132,32 @@ export default function SearchSelectBox({
   const inFlight = useRef(0);
 
   useEffect(() => setQ(value ?? ""), [value]);
-
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
   const doSearch = async () => {
     if (!canSearch) {
-      setItems([]);
-      setErr(null);
-      return;
+      setItems([]); setErr(null); return;
     }
     inFlight.current += 1;
     const token = inFlight.current;
-
-    setLoading(true);
-    setErr(null);
+    setLoading(true); setErr(null);
     try {
       const list = await searchAny(q, mapCenter);
       if (token !== inFlight.current) return;
-      setItems(list.slice(0, 10));
+      setItems(list);
       if (!list.length) setErr("검색 결과가 없습니다.");
       setOpen(true);
     } catch {
       if (token !== inFlight.current) return;
       setErr("검색 실패. 잠시 후 다시 시도해주세요.");
-      setItems([]);
-      setOpen(true);
+      setItems([]); setOpen(true);
     } finally {
       if (token === inFlight.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!canSearch) {
-      setItems([]);
-      setErr(null);
-      return;
-    }
+    if (!canSearch) { setItems([]); setErr(null); return; }
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(doSearch, 250);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,38 +169,26 @@ export default function SearchSelectBox({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => (items.length || err) && setOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            doSearch();
-          }
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doSearch(); } }}
         placeholder={placeholder}
-        // ✅ 배경 흰색 고정
         className="w-full px-3 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
       />
       {open && (items.length > 0 || loading || err) && (
         <div className="absolute z-20 left-0 right-0 mt-1 rounded-xl border bg-white shadow max-h-72 overflow-auto">
           {loading && <div className="px-3 py-2 text-sm text-gray-500">검색 중…</div>}
           {!loading && err && <div className="px-3 py-2 text-sm text-red-500">{err}</div>}
-          {!loading &&
-            !err &&
-            items.map((it, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onSelect(it);
-                  setQ(it.address);
-                  setOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50"
-              >
-                <div className="text-sm font-medium">{it.title}</div>
-                {it.subtitle && <div className="text-xs text-gray-500">{it.subtitle}</div>}
-              </button>
-            ))}
+          {!loading && !err && items.map((it, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onSelect(it); setQ(it.address); setOpen(false); }}
+              className="w-full text-left px-3 py-2 hover:bg-gray-50"
+            >
+              <div className="text-sm font-medium">{it.title}</div>
+              {it.subtitle && <div className="text-xs text-gray-500">{it.subtitle}</div>}
+            </button>
+          ))}
         </div>
       )}
     </div>
