@@ -46,14 +46,54 @@ async function geocodeOnce(opts: any): Promise<any[]> {
   });
 }
 
+async function placeSearchOnce(q: string, center?: { lat: number; lng: number }): Promise<any[]> {
+  const { naver } = window as any;
+  const Svc = naver?.maps?.Service;
+  if (!Svc) return [];
+  const fn = (Svc as any).search || (Svc as any).placeSearch || (Svc as any).searchPoi || null;
+  if (!fn) return []; // SDK 버전에 따라 없을 수도 있음
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => { if (!settled) { settled = true; resolve([]); } }, 4000);
+
+    const opts: any = { query: q.trim() };
+    if (center) opts.coords = new naver.maps.LatLng(center.lat, center.lng);
+
+    fn.call(Svc, opts, (status: any, resp: any) => {
+      if (settled) return;
+      clearTimeout(timer);
+      if (status !== naver.maps.Service.Status.OK) return resolve([]);
+      const items = resp?.result?.items ?? resp?.v2?.addresses ?? resp?.places ?? [];
+      resolve(items);
+    });
+  });
+}
+
+function toSuggestFromPlace(q: string, v: any) {
+  const name = v.title || v.name || v.placeName || v.display || q;
+  const road = v.roadAddress || v.address || v.road_address || "";
+  const jibun = v.jibunAddress || v.jibun_address || "";
+  const lat = Number(v.y || v.lat || v.latitude);
+  const lng = Number(v.x || v.lng || v.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    title: name,
+    subtitle: road || jibun || undefined,
+    lat, lng,
+    address: road || jibun || name,
+  } as const;
+}
+
+
 /* ===================== 지역(POI) 검색 – 네이버 OpenAPI (프론트) ===================== */
 async function localSearchFront(q: string, signal?: AbortSignal): Promise<Suggest[]> {
   const id = import.meta.env.VITE_NAVER_SEARCH_CLIENT_ID as string;
   const secret = import.meta.env.VITE_NAVER_SEARCH_CLIENT_SECRET as string;
 
-  console.log("[local] env", { id, secret: !!secret });
   if (!id || !secret) {
-    throw new Error("검색 API 키 없음: VITE_NAVER_SEARCH_CLIENT_ID / VITE_NAVER_SEARCH_CLIENT_SECRET");
+    console.warn("[local] 검색 API 키 없음 → SDK place로 폴백");
+    return []; // ← 여기서 예외 던지지 말고 빈 배열
   }
 
   const raw =
@@ -119,6 +159,8 @@ async function localSearchFront(q: string, signal?: AbortSignal): Promise<Sugges
     (e) => console.error("LOCAL error", e)
   );
 
+  
+
 /* ===================== 지오코딩 결과 파서 ===================== */
 function toSuggestFromAddress(q: string, v: any): Suggest {
   const lat = Number(v.y);
@@ -135,32 +177,39 @@ function toSuggestFromAddress(q: string, v: any): Suggest {
 }
 
 /* ===================== 통합 검색 (POI 우선 → 주소 보강) ===================== */
-async function searchAny(
-  q: string,
-  center?: { lat: number; lng: number },
-  signal?: AbortSignal
-): Promise<Suggest[]> {
+async function searchAny(q: string, center?: { lat: number; lng: number }, signal?: AbortSignal) {
   const { naver } = window as any;
   const base = center ? { coords: new naver.maps.LatLng(center.lat, center.lng) } : {};
 
-  // 1) 지역(POI) 먼저 — 여기가 반드시 실행되어 openapi 호출이 찍혀야 함
-  const fromLocal = await localSearchFront(q, signal);
+  // 1) 지역(OpenAPI) 시도
+  const fromLocal = await localSearchFront(q, signal).catch(() => []);
 
-  // 2) 주소/키워드 지오코딩 보강
+  // 1-폴백) 키 없거나 실패하면 SDK place 시도
+  let fromPlace: Suggest[] = [];
+  if (!fromLocal.length) {
+    const places = await placeSearchOnce(q, center);
+    fromPlace = (places.map((v) => toSuggestFromPlace(q, v)).filter(Boolean) as any) as Suggest[];
+  }
+
+  // 2) 지오코딩 보강
   let list = await geocodeOnce({ query: q.trim(), ...base, page: 1, count: 10 });
   if (!list.length) list = await geocodeOnce({ address: q.trim(), ...base, page: 1, count: 10 });
-  const fromSDK = list.map((v) => toSuggestFromAddress(q, v));
+  const fromSDK = list.map((v) => ({
+    title: v.roadAddress || v.jibunAddress || v.englishAddress || q,
+    subtitle: v.roadAddress && v.jibunAddress ? v.jibunAddress : undefined,
+    lat: Number(v.y),
+    lng: Number(v.x),
+    address: v.roadAddress || v.jibunAddress || v.englishAddress || q,
+  }));
 
-  // 3) 병합 + 중복 제거
+  // 3) 병합/중복 제거/정렬
   const seen = new Set<string>();
-  const merged = [...fromLocal, ...fromSDK].filter((s) => {
+  const merged = [...fromLocal, ...fromPlace, ...fromSDK].filter((s) => {
     const key = `${s.address}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-
-  // 4) center 가까운 순
   if (center) {
     merged.sort((a, b) => {
       const da = Math.hypot(a.lat - center.lat, a.lng - center.lng);
@@ -168,9 +217,9 @@ async function searchAny(
       return da - db;
     });
   }
-
   return merged.slice(0, 10);
 }
+
 
 /* ===================== 컴포넌트 ===================== */
 export default function SearchSelectBox({
