@@ -2,18 +2,18 @@ import { db } from "../utils/firebase";
 import { SessionPayload } from "../interfaces/session";
 import { v4 as uuidv4 } from "uuid";
 
-const SESSION_COLLECTION = "sessions";
-const collectionRef = db.collection(SESSION_COLLECTION);
-
 /**
  * 새로운 세션을 초기화하고 Firestore에 저장
  * @param userId Firebase UID (비회원은 빈 문자열 가능)
  * @returns 생성된 세션 ID
  */
-export async function initSession(userId: string = "") {
+export async function initSession(userId: string = "", isTest: boolean = false) {
   try {
     const sessionId = uuidv4();
     const now = new Date().toISOString();
+
+    const collectionName = isTest ? "testSessions" : "sessions";
+    const collectionRef = db.collection(collectionName);
 
     //만약 userId가 존재한다면 userId 넣어서 처리
     let isRegistered: boolean;
@@ -43,11 +43,14 @@ export async function initSession(userId: string = "") {
  * @param updates 업데이트할 필드
  * @returns sessionId
  */
-export async function updateSession(sessionId: string, updates: Partial<SessionPayload>) {
+export async function updateSession(sessionId: string, updates: Partial<SessionPayload>, isTest: boolean = false) {
   try {
     if (!sessionId) {
       throw new Error("세션 ID가 없습니다");
     }
+    const collectionName = isTest ? "testSessions" : "sessions";
+    const collectionRef = db.collection(collectionName);
+
     const ref = await collectionRef.doc(sessionId);
     const snapshot = await ref.get();
 

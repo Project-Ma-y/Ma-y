@@ -7,8 +7,10 @@ import { CookieOptions } from "express";
 export const cookieSet: CookieOptions = {
   httpOnly: true,
   secure: true,
+  path: "/",
+  maxAge: 7 * 24 * 60 * 60 *1000,
   sameSite: "none", // 타입상 "lax" | "strict" | "none" | boolean 허용
-  domain: ".mayservice.co.kr", // ← 여기!
+  domain: ".mayservice.co.kr",
 };
 
 //최초 접속
