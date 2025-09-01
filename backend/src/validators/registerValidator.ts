@@ -31,9 +31,9 @@ export function validateRegisterPayload(payload: RegisterPayload): string[] {
     errors.push("이름을 입력해주세요.");
   }
 
-  if (!payload.address || payload.address.trim().length === 0) {
-    errors.push("주소를 입력해주세요.");
-  }
+  // if (!payload.address || payload.address.trim().length === 0) {
+  //   errors.push("주소를 입력해주세요.");
+  // }
 
   if (
     !payload.birthdate ||
