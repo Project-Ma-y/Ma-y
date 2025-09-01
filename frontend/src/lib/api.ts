@@ -6,7 +6,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { getIdTokenSafe } from "./token";
 
 export const API_DEFAULT_BASE =
-  (import.meta.env.VITE_API_BASE_URL as string) ?? "https://ma-y-5usy.onrender.com/api";
+  (import.meta.env.VITE_API_BASE_URL as string)
 
 /** 엔드포인트 정규화: /api 중복 제거 + 선행 슬래시 부여 */
 export function normalizeEndpoint(ep: string): string {
