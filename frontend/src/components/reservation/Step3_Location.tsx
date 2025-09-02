@@ -36,12 +36,8 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
   const handleNextClick = () => {
     if (!isValid) return;
 
-    const depFull = `${departure.address}${
-      departureDetail ? ` ${departureDetail}` : ""
-    }`;
-    const desFull = `${destination.address}${
-      destinationDetail ? ` ${destinationDetail}` : ""
-    }`;
+    const depFull = `${departure.address}${departureDetail ? ` ${departureDetail}` : ""}`;
+    const desFull = `${destination.address}${destinationDetail ? ` ${destinationDetail}` : ""}`;
 
     onNext({
       departureAddress: depFull,
@@ -54,7 +50,7 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
   };
 
   return (
-    <div className="relative min-h-[100vh] pb-[260px]">
+    <div className="relative">
       <GoogleRoutePicker
         initialDeparture={departure}
         initialDestination={destination}
@@ -62,10 +58,12 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
           setDeparture(d);
           setDestination(t);
         }}
-        mapClassName="h-[68vh]"
+        // 메인 레이아웃 안에서 지도 영역을 크게
+        mapClassName="h-[60vh] md:h-[65vh]"
       />
 
-      <div className="fixed inset-x-0 bottom-0 z-50">
+      {/* 메인 레이아웃 내부에 고정(sticky) */}
+      <div className="sticky bottom-0 z-20 mt-4">
         <Card className="rounded-t-2xl border-t p-0 shadow-xl">
           <div className="p-4 space-y-3">
             <h2 className="text-xl font-bold">선택된 경로</h2>
@@ -73,9 +71,7 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
             <ul className="space-y-3 text-gray-700 text-sm">
               <li className="flex flex-col gap-1">
                 <span className="text-gray-500">출발지</span>
-                <span className="font-medium break-all">
-                  {departure.address || "-"}
-                </span>
+                <span className="font-medium break-all">{departure.address || "-"}</span>
                 <input
                   value={departureDetail}
                   onChange={(e) => setDepartureDetail(e.target.value)}
@@ -86,9 +82,7 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
 
               <li className="flex flex-col gap-1">
                 <span className="text-gray-500">도착지</span>
-                <span className="font-medium break-all">
-                  {destination.address || "-"}
-                </span>
+                <span className="font-medium break-all">{destination.address || "-"}</span>
                 <input
                   value={destinationDetail}
                   onChange={(e) => setDestinationDetail(e.target.value)}
