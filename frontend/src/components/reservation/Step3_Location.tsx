@@ -59,7 +59,7 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
           setDestination(t);
         }}
         // 메인 레이아웃 안에서 지도 영역을 크게
-        mapClassName="h-[60vh] md:h-[65vh]"
+        mapClassName="h-[40vh] md:h-[45vh]"
       />
 
       {/* 메인 레이아웃 내부에 고정(sticky) */}

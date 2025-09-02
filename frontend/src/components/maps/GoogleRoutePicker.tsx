@@ -204,10 +204,6 @@ export default function GoogleRoutePicker({
         ref={mapRef}
         className={clsx("w-full rounded-xl", mapClassName ?? "h-[60vh]")}
       />
-
-      <p className="text-xs text-gray-500">
-        팁: 지도 클릭은 최근에 포커스된 입력(출발/도착)에 적용됩니다.
-      </p>
     </div>
   );
 }
