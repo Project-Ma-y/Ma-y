@@ -11,6 +11,7 @@ type Props = {
   initialDestination: Place;
   onChange: (v: { departure: Place; destination: Place }) => void;
   className?: string;
+  /** 지도 컨테이너 커스텀 높이/스타일 (기본: h-[60vh]) */
   mapClassName?: string;
 };
 
@@ -19,20 +20,23 @@ export default function GoogleRoutePicker({
   initialDestination,
   onChange,
   className,
+  mapClassName,
 }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const depInputRef = useRef<HTMLInputElement>(null);
   const desInputRef = useRef<HTMLInputElement>(null);
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const depMarkerRef = useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
-  const desMarkerRef = useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
+  const depMarkerRef =
+    useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
+  const desMarkerRef =
+    useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
-  // 마지막 포커스 (지도 클릭 시 적용 대상)
+  // 최근 포커스된 입력 (지도 클릭 시 어느 점을 갱신할지)
   const lastFocusedRef = useRef<"dep" | "des">("dep");
 
-  // 상태 + 현재값 ref (클로저 최신화)
+  // 상태 + 최신값 ref (클로저 고정 문제 방지)
   const [departure, _setDeparture] = useState<Place>(initialDeparture);
   const [destination, _setDestination] = useState<Place>(initialDestination);
   const departureRef = useRef<Place>(initialDeparture);
@@ -48,7 +52,6 @@ export default function GoogleRoutePicker({
   };
 
   const emit = (nextDep?: Place, nextDes?: Place) => {
-    // 최신값으로 항상 emit
     const d = nextDep ?? departureRef.current;
     const t = nextDes ?? destinationRef.current;
     onChange({ departure: d, destination: t });
@@ -85,8 +88,7 @@ export default function GoogleRoutePicker({
       await loadGoogleMaps({ libraries: ["places", "marker", "geocoding"] });
 
       const center =
-        initialDeparture.coord ??
-        initialDestination.coord ?? { lat: 37.5665, lng: 126.9780 };
+        initialDeparture.coord ?? initialDestination.coord ?? { lat: 37.5665, lng: 126.978 };
 
       const _map = new google.maps.Map(mapRef.current!, { center, zoom: 14 });
       setMap(_map);
@@ -100,27 +102,29 @@ export default function GoogleRoutePicker({
       if (initialDeparture.coord) setMarkerPosition("dep", initialDeparture.coord);
       if (initialDestination.coord) setMarkerPosition("des", initialDestination.coord);
 
-      // 지도 클릭 → 최근 포커스 대상 업데이트
+      // 지도 클릭 → 최근 포커스 대상만 갱신 (다른 값 보존)
       _map.addListener("click", async (e: google.maps.MapMouseEvent) => {
         if (!e.latLng) return;
         const pos = e.latLng.toJSON();
 
         if (lastFocusedRef.current === "dep") {
           setMarkerPosition("dep", pos);
-          const addr = (await reverseGeocode(pos)) ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+          const addr =
+            (await reverseGeocode(pos)) ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
           const next = { coord: pos, address: addr };
           setDeparture(next);
-          emit(next, undefined); // ✅ 다른 쪽 보존
+          emit(next, undefined);
         } else {
           setMarkerPosition("des", pos);
-          const addr = (await reverseGeocode(pos)) ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+          const addr =
+            (await reverseGeocode(pos)) ?? `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
           const next = { coord: pos, address: addr };
           setDestination(next);
-          emit(undefined, next); // ✅ 다른 쪽 보존
+          emit(undefined, next);
         }
       });
 
-      // Autocomplete (클래식) – ref 기반으로 최신값 emit
+      // Autocomplete(클래식) 바인딩 – 최신 ref 사용해서 다른 쪽 값 보존
       if (depInputRef.current) {
         const ac = new google.maps.places.Autocomplete(depInputRef.current, {
           fields: ["geometry", "formatted_address"],
@@ -135,7 +139,7 @@ export default function GoogleRoutePicker({
           setMarkerPosition("dep", loc);
           const next = { coord: loc, address: p.formatted_address ?? "" };
           setDeparture(next);
-          emit(next, undefined); // ✅ 도착지 유지
+          emit(next, undefined);
         });
       }
 
@@ -153,26 +157,27 @@ export default function GoogleRoutePicker({
           setMarkerPosition("des", loc);
           const next = { coord: loc, address: p.formatted_address ?? "" };
           setDestination(next);
-          emit(undefined, next); // ✅ 출발지 유지
+          emit(undefined, next);
         });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 수동 입력도 최신값 보존하도록 수정
-  const onInputChange = (which: "dep" | "des") => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    if (which === "dep") {
-      const next = { ...departureRef.current, address: v };
-      setDeparture(next);
-      emit(next, undefined);
-    } else {
-      const next = { ...destinationRef.current, address: v };
-      setDestination(next);
-      emit(undefined, next);
-    }
-  };
+  // 수동 입력도 각자만 갱신
+  const onInputChange =
+    (which: "dep" | "des") => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = e.target.value;
+      if (which === "dep") {
+        const next = { ...departureRef.current, address: v };
+        setDeparture(next);
+        emit(next, undefined);
+      } else {
+        const next = { ...destinationRef.current, address: v };
+        setDestination(next);
+        emit(undefined, next);
+      }
+    };
 
   return (
     <div className={clsx("space-y-3", className)}>
@@ -194,11 +199,15 @@ export default function GoogleRoutePicker({
           className="w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2"
         />
       </div>
+
       <div
-     ref={mapRef}
-     className={clsx("w-full rounded-xl", mapClassName ?? "h-[60vh]")}
-    />
-      <p className="text-xs text-gray-500">팁: 지도 클릭은 최근에 포커스된 입력(출발/도착)에 적용됩니다.</p>
+        ref={mapRef}
+        className={clsx("w-full rounded-xl", mapClassName ?? "h-[60vh]")}
+      />
+
+      <p className="text-xs text-gray-500">
+        팁: 지도 클릭은 최근에 포커스된 입력(출발/도착)에 적용됩니다.
+      </p>
     </div>
   );
 }
