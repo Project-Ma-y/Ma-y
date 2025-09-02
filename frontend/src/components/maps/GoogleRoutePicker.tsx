@@ -11,6 +11,7 @@ type Props = {
   initialDestination: Place;
   onChange: (v: { departure: Place; destination: Place }) => void;
   className?: string;
+  mapClassName?: string;
 };
 
 export default function GoogleRoutePicker({
@@ -193,7 +194,10 @@ export default function GoogleRoutePicker({
           className="w-full px-4 py-2 border rounded-xl shadow-sm focus:outline-none focus:ring-2"
         />
       </div>
-      <div ref={mapRef} className="h-96 w-full rounded-xl" />
+      <div
+     ref={mapRef}
+     className={clsx("w-full rounded-xl", mapClassName ?? "h-[60vh]")}
+    />
       <p className="text-xs text-gray-500">팁: 지도 클릭은 최근에 포커스된 입력(출발/도착)에 적용됩니다.</p>
     </div>
   );

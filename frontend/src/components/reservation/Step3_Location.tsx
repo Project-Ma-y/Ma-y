@@ -2,7 +2,6 @@
 import React, { useMemo, useState } from "react";
 import Card from "@/components/Card";
 import Button from "@/components/button/Button";
-// ✅ 네이버 → 구글로 교체
 import GoogleRoutePicker from "@/components/maps/GoogleRoutePicker";
 
 interface Step3Props {
@@ -10,6 +9,7 @@ interface Step3Props {
   onNext: (data: any) => void;
   onPrev: () => void;
 }
+
 type Place = { coord: { lat: number; lng: number } | null; address: string };
 
 const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
@@ -21,6 +21,12 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
     coord: null,
     address: formData?.destinationAddress || "",
   });
+  const [departureDetail, setDepartureDetail] = useState<string>(
+    formData?.departureDetail || ""
+  );
+  const [destinationDetail, setDestinationDetail] = useState<string>(
+    formData?.destinationDetail || ""
+  );
 
   const isValid = useMemo(
     () => Boolean(departure.address && destination.address),
@@ -29,16 +35,26 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
 
   const handleNextClick = () => {
     if (!isValid) return;
+
+    const depFull = `${departure.address}${
+      departureDetail ? ` ${departureDetail}` : ""
+    }`;
+    const desFull = `${destination.address}${
+      destinationDetail ? ` ${destinationDetail}` : ""
+    }`;
+
     onNext({
-      departureAddress: departure.address,
-      destinationAddress: destination.address,
+      departureAddress: depFull,
+      destinationAddress: desFull,
       departureCoord: departure.coord,
       destinationCoord: destination.coord,
+      departureDetail,
+      destinationDetail,
     });
   };
 
   return (
-    <div className="relative">
+    <div className="relative min-h-[100vh] pb-[260px]">
       <GoogleRoutePicker
         initialDeparture={departure}
         initialDestination={destination}
@@ -46,27 +62,54 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
           setDeparture(d);
           setDestination(t);
         }}
+        mapClassName="h-[68vh]"
       />
 
-      <Card className="absolute bottom-0 w-full rounded-b-none p-0 pointer-events-none bg-transparent shadow-none">
-        <div className="pointer-events-auto p-4">
-          <h2 className="text-xl font-bold mb-3">선택된 경로</h2>
-          <ul className="space-y-2 text-gray-700 text-sm">
-            <li className="flex gap-2">
-              <span className="text-gray-500 shrink-0">출발지</span>
-              <span className="font-medium break-all">{departure.address || "-"}</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-gray-500 shrink-0">도착지</span>
-              <span className="font-medium break-all">{destination.address || "-"}</span>
-            </li>
-          </ul>
-        </div>
-        <div className="pointer-events-auto flex justify-between gap-2 p-4 bg-gray-50 border-t">
-          <Button onClick={onPrev} buttonName="이전" type="secondary" />
-          <Button onClick={handleNextClick} buttonName="다음" type="primary" disabled={!isValid} />
-        </div>
-      </Card>
+      <div className="fixed inset-x-0 bottom-0 z-50">
+        <Card className="rounded-t-2xl border-t p-0 shadow-xl">
+          <div className="p-4 space-y-3">
+            <h2 className="text-xl font-bold">선택된 경로</h2>
+
+            <ul className="space-y-3 text-gray-700 text-sm">
+              <li className="flex flex-col gap-1">
+                <span className="text-gray-500">출발지</span>
+                <span className="font-medium break-all">
+                  {departure.address || "-"}
+                </span>
+                <input
+                  value={departureDetail}
+                  onChange={(e) => setDepartureDetail(e.target.value)}
+                  placeholder="상세주소 (동/호/건물명 등)"
+                  className="mt-1 w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                />
+              </li>
+
+              <li className="flex flex-col gap-1">
+                <span className="text-gray-500">도착지</span>
+                <span className="font-medium break-all">
+                  {destination.address || "-"}
+                </span>
+                <input
+                  value={destinationDetail}
+                  onChange={(e) => setDestinationDetail(e.target.value)}
+                  placeholder="상세주소 (동/호/건물명 등)"
+                  className="mt-1 w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2"
+                />
+              </li>
+            </ul>
+
+            <div className="flex justify-between gap-2 pt-2">
+              <Button onClick={onPrev} buttonName="이전" type="secondary" />
+              <Button
+                onClick={handleNextClick}
+                buttonName="다음"
+                type="primary"
+                disabled={!isValid}
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };
