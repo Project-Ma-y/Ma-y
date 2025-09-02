@@ -2,7 +2,8 @@
 import React, { useMemo, useState } from "react";
 import Card from "@/components/Card";
 import Button from "@/components/button/Button";
-import NaverMapPicker from "@/components/maps/NaverMapPicker";
+// ✅ 네이버 → 구글로 교체
+import GoogleRoutePicker from "@/components/maps/GoogleRoutePicker";
 
 interface Step3Props {
   formData: any;
@@ -38,7 +39,7 @@ const Step3_Location: React.FC<Step3Props> = ({ formData, onNext, onPrev }) => {
 
   return (
     <div className="relative">
-      <NaverMapPicker
+      <GoogleRoutePicker
         initialDeparture={departure}
         initialDestination={destination}
         onChange={({ departure: d, destination: t }) => {
