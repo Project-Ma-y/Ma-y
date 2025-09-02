@@ -5,7 +5,7 @@ import MainLayout from "@/layouts/MainLayout";
 import Card from "@/components/Card";
 import clsx from "clsx";
 import { api } from "@/lib/api";
-import { loadNaverMap } from "@/utils/loadNaverMap";
+import { loadGoogleMaps } from "@/utils/loadGoogleMaps"; // ✅ 구글맵 로더
 
 // ===== Types =====
 interface SeniorProfile {
@@ -67,7 +67,7 @@ const toClock = (iso: string) => {
 const formatDateTimeRange = (startISO: string, endISO: string) =>
   `${toDateStr(startISO)} ${toClock(startISO)} ~ ${toClock(endISO)}`;
 
-/** ===== 지도 섹션 ===== */
+/** ===== 지도 섹션 (Google Maps) ===== */
 function MapSection({
   departureAddress,
   destinationAddress,
@@ -81,43 +81,43 @@ function MapSection({
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapObj = useRef<any>(null);
-  const depMarkerRef = useRef<any>(null);
-  const dstMarkerRef = useRef<any>(null);
-  const lineRef = useRef<any>(null);
+  const mapObj = useRef<google.maps.Map | null>(null);
+  const depMarkerRef =
+    useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
+  const dstMarkerRef =
+    useRef<google.maps.Marker | google.maps.marker.AdvancedMarkerElement | null>(null);
+  const lineRef = useRef<google.maps.Polyline | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
-  // 주소 → 좌표
-  const geocode = (q: string): Promise<{ lat: number; lng: number } | null> =>
-    new Promise((resolve) => {
-      const { naver } = window as any;
-      if (!q?.trim()) return resolve(null);
-      const call = (opts: any) =>
-        new Promise<any[]>((res) =>
-          naver.maps.Service.geocode(opts, (status: any, resp: any) => {
-            if (status !== naver.maps.Service.Status.OK) return res([]);
-            res(resp?.v2?.addresses ?? []);
-          })
-        );
-      (async () => {
-        let list = await call({ query: q });
-        if (!list.length) list = await call({ address: q });
-        if (!list.length) return resolve(null);
-        const v = list[0];
-        resolve({ lat: Number(v.y), lng: Number(v.x) });
-      })();
-    });
+  // 주소 → 좌표 (지오코딩 API 미허용 시 null 반환)
+  const geocode = async (
+    q: string
+  ): Promise<{ lat: number; lng: number } | null> => {
+    if (!q?.trim()) return null;
+    try {
+      if (!geocoderRef.current) geocoderRef.current = new google.maps.Geocoder();
+      const res = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+        geocoderRef.current!.geocode({ address: q }, (r, status) => {
+          if (status === "OK" && r && r.length) resolve(r);
+          else resolve(null);
+        });
+      });
+      if (!res) return null;
+      const loc = res[0].geometry.location?.toJSON();
+      return loc ?? null;
+    } catch {
+      return null;
+    }
+  };
 
+  // 맵 초기화
   useEffect(() => {
-    let cleanup: any;
-    let io: IntersectionObserver | null = null;
+    let destroyed = false;
+    (async () => {
+      await loadGoogleMaps({ libraries: ["marker", "geocoding"] });
+      if (!mapRef.current || destroyed) return;
 
-    const initMap = async () => {
-      await loadNaverMap();
-      const { naver } = window as any;
-
-      if (!mapRef.current) return;
-
-      // 컨테이너가 실크기 갖출 때까지 대기
+      // 컨테이너 실크기 대기
       const ensureSize = () =>
         new Promise<void>((r) => {
           let tries = 0;
@@ -126,31 +126,67 @@ function MapSection({
             const w = mapRef.current!.clientWidth;
             const h = mapRef.current!.clientHeight;
             if (w > 0 && h > 0) return r();
-            if (tries > 10) return r(); // 최대 1s
+            if (tries > 10) return r();
             setTimeout(tick, 100);
           };
           tick();
         });
       await ensureSize();
 
-      const map = new naver.maps.Map(mapRef.current!, {
-        center: new naver.maps.LatLng(37.5666805, 126.9784147),
+      const map = new google.maps.Map(mapRef.current, {
+        center: { lat: 37.5666805, lng: 126.9784147 },
         zoom: 14,
-        scaleControl: false,
-        logoControl: false,
-        mapDataControl: false,
+        disableDefaultUI: false,
+        mapTypeControl: true,
       });
       mapObj.current = map;
 
-      // 최초 보정
-      setTimeout(() => naver.maps.Event.trigger(map, "resize"), 0);
+      // IO로 보였다 숨겨졌다 할 때 타일 재배치
+      let io: IntersectionObserver | null = null;
+      if (wrapRef.current) {
+        io = new IntersectionObserver((entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting && mapObj.current) {
+              // google.maps.event.trigger(mapObj.current, "resize"); // 최신 버전에선 불필요
+              mapObj.current!.panBy(0, 0);
+            }
+          });
+        });
+        io.observe(wrapRef.current);
+      }
 
-      const iconBlue =
-        '<div style="padding:4px 8px;border-radius:12px;background:#2563eb;color:#fff;font-size:12px">출발</div>';
-      const iconGreen =
-        '<div style="padding:4px 8px;border-radius:12px;background:#16a34a;color:#fff;font-size:12px">도착</div>';
+      return () => {
+        io && io.disconnect();
+      };
+    })();
 
-      // 좌표 확보 (백엔드 제공 → 없으면 지오코딩)
+    return () => {
+      destroyed = true;
+    };
+  }, []);
+
+  // 마커/라인 업데이트
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const map = mapObj.current;
+      if (!map) return;
+
+      const hasAdv = (google.maps as any).marker?.AdvancedMarkerElement;
+
+      const makeLabelDiv = (text: string, bg: string) => {
+        const el = document.createElement("div");
+        el.style.padding = "4px 8px";
+        el.style.borderRadius = "12px";
+        el.style.background = bg;
+        el.style.color = "#fff";
+        el.style.fontSize = "12px";
+        el.style.fontWeight = "600";
+        el.textContent = text;
+        return el;
+      };
+
+      // 좌표 확보
       const dep =
         departureCoord ??
         (await geocode(departureAddress).catch(() => null));
@@ -158,71 +194,118 @@ function MapSection({
         destinationCoord ??
         (await geocode(destinationAddress).catch(() => null));
 
+      if (cancelled) return;
+
+      // 출발 마커
       if (dep) {
-        depMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(dep.lat, dep.lng),
-          map,
-          icon: { content: iconBlue, anchor: new naver.maps.Point(20, 20) },
-        });
+        const pos = dep;
+        if (!depMarkerRef.current) {
+          depMarkerRef.current = hasAdv
+            ? new (google.maps as any).marker.AdvancedMarkerElement({
+                map,
+                position: pos,
+                content: makeLabelDiv("출발", "#2563eb"),
+              })
+            : new google.maps.Marker({
+                map,
+                position: pos,
+                label: { text: "출", color: "#fff", fontWeight: "700" },
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }, // 라벨만 보이게
+              });
+        } else {
+          if (depMarkerRef.current instanceof google.maps.Marker) {
+            depMarkerRef.current.setPosition(pos);
+          } else {
+            (depMarkerRef.current as any).position = pos;
+          }
+        }
       }
+
+      // 도착 마커
       if (dst) {
-        dstMarkerRef.current = new naver.maps.Marker({
-          position: new naver.maps.LatLng(dst.lat, dst.lng),
-          map,
-          icon: { content: iconGreen, anchor: new naver.maps.Point(20, 20) },
-        });
+        const pos = dst;
+        if (!dstMarkerRef.current) {
+          dstMarkerRef.current = hasAdv
+            ? new (google.maps as any).marker.AdvancedMarkerElement({
+                map,
+                position: pos,
+                content: makeLabelDiv("도착", "#16a34a"),
+              })
+            : new google.maps.Marker({
+                map,
+                position: pos,
+                label: { text: "도", color: "#fff", fontWeight: "700" },
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 },
+              });
+        } else {
+          if (dstMarkerRef.current instanceof google.maps.Marker) {
+            dstMarkerRef.current.setPosition(pos);
+          } else {
+            (dstMarkerRef.current as any).position = pos;
+          }
+        }
       }
 
+      // 선 긋기 / 뷰 보정
       if (dep && dst) {
-        const bounds = new naver.maps.LatLngBounds(
-          new naver.maps.LatLng(dep.lat, dep.lng),
-          new naver.maps.LatLng(dst.lat, dst.lng)
-        );
-        map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-        lineRef.current = new naver.maps.Polyline({
-          map,
-          path: [
-            new naver.maps.LatLng(dep.lat, dep.lng),
-            new naver.maps.LatLng(dst.lat, dst.lng),
-          ],
-          strokeWeight: 4,
-          strokeOpacity: 0.7,
-          strokeColor: "#2563eb",
-        });
-      } else if (dep) {
-        map.setCenter(new naver.maps.LatLng(dep.lat, dep.lng));
-      } else if (dst) {
-        map.setCenter(new naver.maps.LatLng(dst.lat, dst.lng));
-      }
-
-      // 가시성 변경 시 resize
-      if (wrapRef.current) {
-        io = new IntersectionObserver((entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting && mapObj.current) {
-              naver.maps.Event.trigger(mapObj.current, "resize");
-            }
+        if (!lineRef.current) {
+          lineRef.current = new google.maps.Polyline({
+            map,
+            path: [dep, dst],
+            strokeWeight: 4,
+            strokeOpacity: 0.7,
+            strokeColor: "#2563eb",
           });
-        });
-        io.observe(wrapRef.current);
+        } else {
+          lineRef.current.setPath([dep, dst]);
+        }
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(dep);
+        bounds.extend(dst);
+        map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+      } else if (dep) {
+        lineRef.current && lineRef.current.setMap(null);
+        lineRef.current = null;
+        map.setCenter(dep);
+      } else if (dst) {
+        lineRef.current && lineRef.current.setMap(null);
+        lineRef.current = null;
+        map.setCenter(dst);
       }
 
-      cleanup = () => {
-        depMarkerRef.current && depMarkerRef.current.setMap(null);
-        dstMarkerRef.current && dstMarkerRef.current.setMap(null);
-        lineRef.current && lineRef.current.setMap(null);
-        mapObj.current = null;
-      };
-    };
-
-    initMap();
+      // clean on deps change
+      return () => {};
+    })();
 
     return () => {
-      cleanup && cleanup();
-      io && io.disconnect();
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [departureAddress, destinationAddress, departureCoord, destinationCoord]);
+  }, [
+    departureAddress,
+    destinationAddress,
+    departureCoord?.lat,
+    departureCoord?.lng,
+    destinationCoord?.lat,
+    destinationCoord?.lng,
+  ]);
+
+  // 언마운트 클린업
+  useEffect(() => {
+    return () => {
+      if (depMarkerRef.current instanceof google.maps.Marker) {
+        depMarkerRef.current.setMap(null);
+      } else if (depMarkerRef.current) {
+        (depMarkerRef.current as any).map = null;
+      }
+      if (dstMarkerRef.current instanceof google.maps.Marker) {
+        dstMarkerRef.current.setMap(null);
+      } else if (dstMarkerRef.current) {
+        (dstMarkerRef.current as any).map = null;
+      }
+      lineRef.current && lineRef.current.setMap(null);
+      mapObj.current = null;
+    };
+  }, []);
 
   return (
     <div ref={wrapRef} className="relative h-[220px] w-full overflow-hidden rounded-t-2xl">
@@ -391,7 +474,7 @@ export default function ReservationDetail() {
           </div>
         </div>
 
-        {/* 지도 섹션 */}
+        {/* 지도 섹션 (Google Maps) */}
         <Card className="p-0">
           <MapSection
             departureAddress={reservationDetails.departureAddress}
